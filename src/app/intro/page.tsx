@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import TypingText from '@/components/TypingText';
+import { useAuth } from '@/lib/auth/auth-context';
 
 export default function IntroPage() {
   const router = useRouter();
@@ -13,10 +14,11 @@ export default function IntroPage() {
   첨부한 문서 검토해보시고 수정 필요한 부분 말씀해주시면 감사하겠습니다.`;
 
   const emailText = useMemo(() => sampleEmail, []);
+  const auth = useAuth();
 
   return (
     <main
-      onClick={() => router.push('/auth')}
+      onClick={() => router.push(auth.status === 'authenticated' ? '/main' : '/auth')}
       className="relative min-h-screen bg-zinc-950 text-zinc-50"
     >
       {/* subtle vignette */}
