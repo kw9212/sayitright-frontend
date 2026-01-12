@@ -21,6 +21,7 @@ type AuthContextValue = {
   bootstrap: () => Promise<void>;
   loginLocal: (params: { email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -124,13 +125,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus('guest');
   };
 
+  const logoutAll = async () => {
+    await fetch('/api/auth/logout-all', { method: 'POST' }).catch(() => {});
+    setUser(null);
+    setToken(null);
+    setStatus('guest');
+  };
+
   useEffect(() => {
     void bootstrap();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, accessToken, bootstrap, loginLocal, logout }),
+    () => ({ status, user, accessToken, bootstrap, loginLocal, logout, logoutAll }),
     [status, user, accessToken],
   );
 
