@@ -30,7 +30,7 @@ export default function AuthPage() {
               <Button
                 type="button"
                 variant={tab === 'login' ? 'default' : 'outline'}
-                className={tab !== 'login' ? 'text-zinc-600 hover:text-zinc-50' : ''}
+                className={tab !== 'login' ? 'text-zinc-600 hover:text-rose-500' : ''}
                 onClick={() => setTab('login')}
               >
                 로그인
@@ -39,7 +39,7 @@ export default function AuthPage() {
               <Button
                 type="button"
                 variant={tab === 'signup' ? 'default' : 'outline'}
-                className={tab !== 'signup' ? 'text-zinc-600 hover:text-zinc-50' : ''}
+                className={tab !== 'signup' ? 'text-zinc-600 hover:text-rose-500' : ''}
                 onClick={() => setTab('signup')}
               >
                 회원가입
