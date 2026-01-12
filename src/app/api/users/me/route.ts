@@ -10,7 +10,6 @@ export async function GET(req: Request) {
   const auth = req.headers.get('authorization') ?? undefined;
 
   let r = await fetchMe(auth);
-
   if (r.status === 401) {
     const cookie = req.headers.get('cookie') ?? '';
 
@@ -20,7 +19,6 @@ export async function GET(req: Request) {
     });
 
     const refreshData = await refreshRes.json();
-
     if (!refreshRes.ok) {
       return NextResponse.json(refreshData, { status: refreshRes.status });
     }
@@ -48,7 +46,9 @@ export async function GET(req: Request) {
     res2.headers.set('x-new-access-token', newAccessToken);
 
     const setCookie = refreshRes.headers.get('set-cookie');
-    if (setCookie) res2.headers.set('set-cookie', setCookie);
+    if (setCookie) {
+      res2.headers.set('set-cookie', setCookie);
+    }
 
     return res2;
   }

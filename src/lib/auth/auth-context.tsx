@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { tokenStore } from './token';
 
 type User = {
   id: string;
@@ -26,8 +27,6 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const ACCESS_TOKEN_KEY = 'accessToken';
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading');
   const [user, setUser] = useState<User | null>(null);
@@ -35,8 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const setToken = (token: string | null) => {
     setAccessToken(token);
-    if (token) sessionStorage.setItem(ACCESS_TOKEN_KEY, token);
-    else sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+
+    if (token) {
+      tokenStore.setAccessToken(token);
+    } else {
+      tokenStore.clearAccessToken();
+    }
   };
 
   const fetchMe = async (token: string) => {
@@ -45,7 +48,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     const newToken = r.headers.get('x-new-access-token');
-    if (newToken) setToken(newToken);
+    if (newToken) {
+      setToken(newToken);
+    }
 
     const data = await r.json().catch(() => null);
     return { r, data };
@@ -54,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const bootstrap = async () => {
     setStatus('loading');
 
-    const token = sessionStorage.getItem(ACCESS_TOKEN_KEY);
+    const token = tokenStore.getAccessToken();
     if (token) {
       const { r, data } = await fetchMe(token);
       if (r.ok && data?.data) {
@@ -104,7 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const token = data?.data?.accessToken ?? data?.accessToken;
-    if (!token) throw new Error('accessToken이 응답에 없습니다.');
+    if (!token) {
+      throw new Error('accessToken이 응답에 없습니다.');
+    }
 
     setToken(token);
 
@@ -139,6 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AuthContextValue>(
     () => ({ status, user, accessToken, bootstrap, loginLocal, logout, logoutAll }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [status, user, accessToken],
   );
 
@@ -147,6 +155,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const v = useContext(AuthContext);
-  if (!v) throw new Error('useAuth must be used within AuthProvider');
+  if (!v) {
+    throw new Error('useAuth must be used within AuthProvider');
+  }
+
   return v;
 }

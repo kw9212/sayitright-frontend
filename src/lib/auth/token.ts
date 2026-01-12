@@ -1,8 +1,11 @@
-const ACCESS_TOKEN_KEY = 'sir_access_token';
+const ACCESS_TOKEN_KEY = 'access_token';
 
 export const tokenStore = {
   getAccessToken(): string | null {
-    if (typeof window === 'undefined') return null;
+    if (typeof window === 'undefined') {
+      return null;
+    }
+
     return sessionStorage.getItem(ACCESS_TOKEN_KEY);
   },
   setAccessToken(token: string) {
