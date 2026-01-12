@@ -1,0 +1,5 @@
+export const FEATURES = {
+  ALLOW_GUEST_USE_PREMIUM_FILTERS: true,
+  ALLOW_GUEST_SAVE_TEMPLATE: true,
+  ALLOW_GUEST_SAVE_ARCHIVE: true,
+} as const;
