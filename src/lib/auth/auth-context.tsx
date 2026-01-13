@@ -3,17 +3,18 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { tokenStore } from './token';
 
-type User = {
+export type User = {
   id: string;
   email: string;
   username?: string | null;
   creditBalance: number;
+  tier?: 'free' | 'premium';
   authProvider: string;
   createdAt: string;
   updatedAt: string;
 };
 
-type AuthStatus = 'loading' | 'guest' | 'authenticated';
+export type AuthStatus = 'loading' | 'guest' | 'authenticated';
 
 type AuthContextValue = {
   status: AuthStatus;
