@@ -22,6 +22,11 @@ export default function EmailComposePage() {
     language: 'ko',
   });
   const [isAdvancedMode, setIsAdvancedMode] = useState(false);
+  const [customInputs, setCustomInputs] = useState({
+    relationship: '',
+    purpose: '',
+    tone: '',
+  });
   const [userInput, setUserInput] = useState('');
   const [generatedEmail, setGeneratedEmail] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -42,13 +47,31 @@ export default function EmailComposePage() {
 
     setIsGenerating(true);
     try {
+      // 직접 입력 값 병합
+      const finalFilters = {
+        relationship:
+          filters.relationship === 'custom' ? customInputs.relationship : filters.relationship,
+        purpose: filters.purpose === 'custom' ? customInputs.purpose : filters.purpose,
+        tone: filters.tone === 'custom' ? customInputs.tone : filters.tone,
+        length: filters.length,
+      };
+
       // TODO: API 호출
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
       let email = `[생성된 이메일]\n\n${userInput}`;
-      if (filters.relationship || filters.purpose) {
-        email += `\n\n[필터: 관계=${filters.relationship}, `;
-        email += `목적=${filters.purpose}]`;
+      if (finalFilters.relationship || finalFilters.purpose) {
+        email += `\n\n[필터: 관계=${finalFilters.relationship}, `;
+        email += `목적=${finalFilters.purpose}`;
+
+        if (finalFilters.tone) {
+          email += `, 톤=${finalFilters.tone}`;
+        }
+
+        if (finalFilters.length) {
+          email += `, 길이=${finalFilters.length}`;
+        }
+        email += `]`;
       }
       setGeneratedEmail(email);
     } catch (error) {
@@ -118,7 +141,26 @@ export default function EmailComposePage() {
                     <option value="colleague">동료</option>
                     <option value="client">고객</option>
                     <option value="friend">친구</option>
+                    <option value="custom">직접 입력</option>
                   </select>
+
+                  {/* 직접 입력 필드 */}
+                  {filters.relationship === 'custom' && (
+                    <input
+                      type="text"
+                      value={customInputs.relationship}
+                      onChange={(e) =>
+                        setCustomInputs((prev) => ({
+                          ...prev,
+                          relationship: e.target.value,
+                        }))
+                      }
+                      placeholder="예: 사촌, 선배님 등"
+                      className="mt-2 w-full px-4 py-2 rounded-lg bg-zinc-800 
+                        border border-zinc-700 focus:border-blue-500 
+                        focus:outline-none transition-colors"
+                    />
+                  )}
                 </div>
 
                 {/* 목적 */}
@@ -139,7 +181,26 @@ export default function EmailComposePage() {
                     <option value="thank">감사</option>
                     <option value="inquiry">문의</option>
                     <option value="report">보고</option>
+                    <option value="custom">직접 입력</option>
                   </select>
+
+                  {/* 직접 입력 필드 */}
+                  {filters.purpose === 'custom' && (
+                    <input
+                      type="text"
+                      value={customInputs.purpose}
+                      onChange={(e) =>
+                        setCustomInputs((prev) => ({
+                          ...prev,
+                          purpose: e.target.value,
+                        }))
+                      }
+                      placeholder="예: 축하, 위로 등"
+                      className="mt-2 w-full px-4 py-2 rounded-lg bg-zinc-800 
+                        border border-zinc-700 focus:border-blue-500 
+                        focus:outline-none transition-colors"
+                    />
+                  )}
                 </div>
 
                 {/* 톤 (고급) */}
@@ -161,7 +222,28 @@ export default function EmailComposePage() {
                     <option value="polite">공손한</option>
                     <option value="casual">캐주얼</option>
                     <option value="friendly">친근한</option>
+                    <option value="custom">직접 입력</option>
                   </select>
+
+                  {/* 직접 입력 필드 */}
+                  {filters.tone === 'custom' && (
+                    <input
+                      type="text"
+                      value={customInputs.tone}
+                      onChange={(e) =>
+                        setCustomInputs((prev) => ({
+                          ...prev,
+                          tone: e.target.value,
+                        }))
+                      }
+                      placeholder="예: 유머러스한, 진지한 등"
+                      disabled={!isAdvancedMode}
+                      className="mt-2 w-full px-4 py-2 rounded-lg bg-zinc-800 
+                        border border-zinc-700 focus:border-blue-500 
+                        focus:outline-none transition-colors 
+                        disabled:opacity-50 disabled:cursor-not-allowed"
+                    />
+                  )}
                 </div>
 
                 {/* 길이 (고급) */}
