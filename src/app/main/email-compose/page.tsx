@@ -29,6 +29,7 @@ export default function EmailComposePage() {
   });
   const [userInput, setUserInput] = useState('');
   const [generatedEmail, setGeneratedEmail] = useState('');
+  const [generatedRationale, setGeneratedRationale] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -147,24 +148,42 @@ export default function EmailComposePage() {
         length: filters.length,
       };
 
-      // TODO: API 호출
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // TODO: 실제 API 호출
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      let email = `[생성된 이메일]\n\n${userInput}`;
-      if (finalFilters.relationship || finalFilters.purpose) {
-        email += `\n\n[필터: 관계=${finalFilters.relationship}, `;
-        email += `목적=${finalFilters.purpose}`;
+      const usesAdvanced = finalFilters.tone || finalFilters.length;
 
-        if (finalFilters.tone) {
-          email += `, 톤=${finalFilters.tone}`;
-        }
-
-        if (finalFilters.length) {
-          email += `, 길이=${finalFilters.length}`;
-        }
-        email += `]`;
+      let email = `안녕하세요,\n\n${userInput}\n\n감사합니다.`;
+      if (usesAdvanced) {
+        email += `\n\n[고급 필터 적용: 톤=${finalFilters.tone}, `;
+        email += `길이=${finalFilters.length}]`;
       }
       setGeneratedEmail(email);
+
+      // 고급 기능 사용 시 피드백 추가
+      if (usesAdvanced && isAdvancedMode) {
+        const feedback = [
+          `📋 개선 피드백:\n\n`,
+          `1. 관계(${finalFilters.relationship})와 `,
+          `목적(${finalFilters.purpose})을 고려하여 `,
+          `적절한 표현을 선택했습니다.\n`,
+          `2. 톤(${finalFilters.tone})에 맞춰 `,
+          `문장의 형식과 어휘를 조정했습니다.\n`,
+          `3. 길이(${finalFilters.length})를 고려하여 `,
+          `핵심 내용을 효과적으로 구성했습니다.\n\n`,
+          `이러한 요소들을 종합하여 수신자에게 `,
+          `가장 적절한 형태로 메시지를 전달합니다.`,
+        ].join('');
+
+        setGeneratedRationale(feedback);
+
+        // TODO: 크레딧 차감 API 호출
+        if (!isGuest) {
+          console.log('크레딧 1 차감됨');
+        }
+      } else {
+        setGeneratedRationale('');
+      }
     } catch (error) {
       console.error('이메일 생성 실패:', error);
       setToastMessage('❌ 이메일 생성에 실패했습니다.');
@@ -173,6 +192,28 @@ export default function EmailComposePage() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // 복사 버튼 핸들러
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedEmail);
+      setToastMessage('✅ 클립보드에 복사되었습니다!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    } catch (error) {
+      console.error('복사 실패:', error);
+      setToastMessage('❌ 복사에 실패했습니다.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
+  };
+
+  // 템플릿 저장 핸들러
+  const handleSaveTemplate = () => {
+    setToastMessage('💾 템플릿 저장 기능은 곧 제공될 예정입니다.');
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
 
   return (
@@ -477,7 +518,9 @@ export default function EmailComposePage() {
             >
               <div>
                 <h3 className="font-semibold">고급 기능</h3>
-                <p className="text-xs text-zinc-400 mt-1">추가 필터 + 개선 근거 제공</p>
+                <p className="text-xs text-zinc-400 mt-1">
+                  추가 필터 + 개선 피드백 제공 {!isGuest && '(크레딧 1)'}
+                </p>
               </div>
               <button
                 onClick={() => setIsAdvancedMode(!isAdvancedMode)}
@@ -515,11 +558,47 @@ export default function EmailComposePage() {
               )}
 
               {generatedEmail && !isGenerating && (
-                <div className="flex-1 overflow-auto">
-                  <pre className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {generatedEmail}
-                  </pre>
-                </div>
+                <>
+                  <div className="flex-1 overflow-auto mb-4">
+                    <pre className="whitespace-pre-wrap text-sm leading-relaxed">
+                      {generatedEmail}
+                    </pre>
+                  </div>
+
+                  {/* 피드백 (고급 기능) */}
+                  {generatedRationale && (
+                    <div
+                      className="mb-4 p-4 rounded-lg bg-yellow-900/20 
+                      border border-yellow-700/30"
+                    >
+                      <pre
+                        className="whitespace-pre-wrap text-xs 
+                        leading-relaxed text-yellow-200"
+                      >
+                        {generatedRationale}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* 액션 버튼들 */}
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleCopy}
+                      className="w-full py-3 rounded-lg bg-green-600 
+                        hover:bg-green-700 font-semibold transition-colors"
+                    >
+                      📋 복사하기
+                    </button>
+
+                    <button
+                      onClick={handleSaveTemplate}
+                      className="w-full py-3 rounded-lg bg-purple-600 
+                        hover:bg-purple-700 font-semibold transition-colors"
+                    >
+                      💾 템플릿으로 저장
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           </div>
