@@ -31,6 +31,29 @@ export default function EmailComposePage() {
   const [generatedEmail, setGeneratedEmail] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // 입력 제한 계산
+  const getInputLimit = (): number => {
+    const isKorean = filters.language === 'ko';
+
+    if (!isAdvancedMode) {
+      return isKorean ? 750 : 3000;
+    }
+
+    const limits: Record<string, { ko: number; en: number }> = {
+      short: { ko: 600, en: 2400 },
+      medium: { ko: 750, en: 3000 },
+      long: { ko: 1200, en: 4800 },
+    };
+
+    const lengthLimit = filters.length ? limits[filters.length] : limits.medium;
+    return isKorean ? lengthLimit.ko : lengthLimit.en;
+  };
+
+  const inputLimit = getInputLimit();
+  const currentLength = userInput.length;
+  const isOverLimit = currentLength > inputLimit;
+  const limitPercentage = (currentLength / inputLimit) * 100;
+
   const handleFilterChange = (key: keyof EmailFilters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
@@ -270,28 +293,109 @@ export default function EmailComposePage() {
             </div>
 
             {/* 텍스트 입력 */}
-            <div className="flex-1 flex flex-col rounded-lg bg-zinc-900 p-6 border border-zinc-800">
-              <h2 className="text-lg font-semibold mb-4">이메일 내용 작성</h2>
+            <div
+              className="flex-1 flex flex-col rounded-lg 
+              bg-zinc-900 p-6 border border-zinc-800"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">이메일 내용 작성</h2>
+
+                {/* 글자수 카운터 */}
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`text-sm font-medium ${
+                      isOverLimit
+                        ? 'text-red-400'
+                        : limitPercentage > 80
+                          ? 'text-yellow-400'
+                          : 'text-zinc-400'
+                    }`}
+                  >
+                    {currentLength.toLocaleString()} /{inputLimit.toLocaleString()}
+                  </div>
+                  {isOverLimit && <span className="text-xs text-red-400">⚠️ 제한 초과</span>}
+                </div>
+              </div>
+
+              {/* 진행률 바 */}
+              <div className="mb-3 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-300 ${
+                    isOverLimit
+                      ? 'bg-red-500'
+                      : limitPercentage > 80
+                        ? 'bg-yellow-500'
+                        : 'bg-blue-500'
+                  }`}
+                  style={{ width: `${Math.min(limitPercentage, 100)}%` }}
+                />
+              </div>
+
+              {/* 경고 메시지 */}
+              {isOverLimit && (
+                <div
+                  className="mb-3 p-3 rounded-lg bg-red-900/20 
+                    border border-red-700/30"
+                >
+                  <p className="text-xs text-red-300">
+                    ⚠️ 입력 제한을 초과했습니다.
+                    {isAdvancedMode && filters.length && (
+                      <span className="ml-1">길이 설정을 변경하면 더 많이 작성할 수 있습니다.</span>
+                    )}
+                  </p>
+                </div>
+              )}
+
               <textarea
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 placeholder="전달하고 싶은 내용을 자유롭게 작성하세요..."
-                className="flex-1 w-full px-4 py-3 rounded-lg bg-zinc-800 
-                  border border-zinc-700 focus:border-blue-500 
-                  focus:outline-none transition-colors resize-none min-h-[400px]"
+                maxLength={inputLimit + 100}
+                className={`flex-1 w-full px-4 py-3 rounded-lg bg-zinc-800 
+                  border ${
+                    isOverLimit
+                      ? 'border-red-500 focus:border-red-400'
+                      : 'border-zinc-700 focus:border-blue-500'
+                  } focus:outline-none transition-colors 
+                  resize-none min-h-[300px]`}
               />
             </div>
 
             {/* 생성 버튼 */}
             <button
               onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full py-4 rounded-lg bg-blue-600 hover:bg-blue-700 
-                disabled:bg-zinc-700 disabled:cursor-not-allowed 
-                font-semibold transition-colors"
+              disabled={isGenerating || isOverLimit}
+              className={`w-full py-4 rounded-lg font-semibold 
+                transition-colors ${
+                  isOverLimit
+                    ? 'bg-zinc-700 cursor-not-allowed opacity-50'
+                    : 'bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700'
+                }`}
             >
-              {isGenerating ? '생성 중...' : '이메일 생성'}
+              {isGenerating ? '생성 중...' : isOverLimit ? '⚠️ 입력 제한 초과' : '이메일 생성'}
             </button>
+
+            {/* 예상 출력 길이 */}
+            {!isOverLimit && userInput && (
+              <div className="text-xs text-zinc-500 text-center">
+                💡 예상 출력: 약{' '}
+                {filters.language === 'ko'
+                  ? `${
+                      filters.length === 'long'
+                        ? '1500-2000'
+                        : filters.length === 'medium'
+                          ? '750-1000'
+                          : '450-600'
+                    }자`
+                  : `${
+                      filters.length === 'long'
+                        ? '700-800'
+                        : filters.length === 'medium'
+                          ? '350-400'
+                          : '200-250'
+                    }단어`}
+              </div>
+            )}
           </div>
 
           {/* 오른쪽: 결과 영역 */}
