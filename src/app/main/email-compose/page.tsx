@@ -30,6 +30,10 @@ export default function EmailComposePage() {
   const [userInput, setUserInput] = useState('');
   const [generatedEmail, setGeneratedEmail] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [missingFilters, setMissingFilters] = useState<string[]>([]);
 
   // 입력 제한 계산
   const getInputLimit = (): number => {
@@ -62,12 +66,76 @@ export default function EmailComposePage() {
     return <div className="min-h-screen bg-zinc-950 text-zinc-50">로딩중...</div>;
   }
 
+  const isGuest = auth.status === 'guest';
+
+  // 필터 완성도 체크
+  const checkFiltersComplete = (): {
+    complete: boolean;
+    missing: string[];
+  } => {
+    const missing: string[] = [];
+
+    if (!filters.relationship) missing.push('관계');
+    if (!filters.purpose) missing.push('목적');
+
+    if (isAdvancedMode) {
+      if (!filters.tone) missing.push('톤');
+      if (!filters.length) missing.push('길이');
+    }
+
+    return { complete: missing.length === 0, missing };
+  };
+
+  // 크레딧 체크
+  const checkCreditForAdvanced = (): boolean => {
+    const usesAdvancedFilters = filters.tone || filters.length;
+
+    if (!usesAdvancedFilters) return true;
+
+    if (isGuest) {
+      setToastMessage('💡 체험 모드: 고급 기능을 무료로 사용 중입니다!');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return true;
+    }
+
+    const creditBalance = auth.user?.creditBalance ?? 0;
+    if (creditBalance < 1) {
+      setToastMessage('⚠️ 크레딧이 부족합니다. 충전이 필요합니다.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleGenerate = async () => {
     if (!userInput.trim()) {
-      alert('이메일 내용을 입력해주세요.');
+      setToastMessage('⚠️ 이메일 내용을 입력해주세요.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
       return;
     }
 
+    // 필터 완성도 체크
+    const { complete, missing } = checkFiltersComplete();
+    if (!complete) {
+      setMissingFilters(missing);
+      setShowConfirmModal(true);
+      return;
+    }
+
+    // 크레딧 체크
+    if (!checkCreditForAdvanced()) {
+      return;
+    }
+
+    await executeGeneration();
+  };
+
+  // 실제 생성 로직
+  const executeGeneration = async () => {
     setIsGenerating(true);
     try {
       // 직접 입력 값 병합
@@ -98,8 +166,10 @@ export default function EmailComposePage() {
       }
       setGeneratedEmail(email);
     } catch (error) {
-      console.error('생성 실패:', error);
-      alert('이메일 생성에 실패했습니다.');
+      console.error('이메일 생성 실패:', error);
+      setToastMessage('❌ 이메일 생성에 실패했습니다.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     } finally {
       setIsGenerating(false);
     }
@@ -455,6 +525,64 @@ export default function EmailComposePage() {
           </div>
         </div>
       </div>
+
+      {/* 토스트 알림 */}
+      {showToast && (
+        <div
+          className="fixed bottom-8 right-8 bg-zinc-800 
+            border border-zinc-700 text-white px-6 py-3 
+            rounded-lg shadow-lg animate-bounce max-w-sm"
+        >
+          {toastMessage}
+        </div>
+      )}
+
+      {/* 필터 미설정 확인 모달 */}
+      {showConfirmModal && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center 
+          justify-center z-50"
+        >
+          <div
+            className="bg-zinc-900 border border-zinc-700 rounded-lg 
+            p-6 max-w-md mx-4"
+          >
+            <h3 className="text-xl font-semibold mb-4">⚠️ 필터 미설정 확인</h3>
+            <p className="text-zinc-300 mb-4">다음 필터가 설정되지 않았습니다:</p>
+            <ul className="list-disc list-inside text-zinc-400 mb-6 space-y-1">
+              {missingFilters.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+            <p className="text-sm text-zinc-400 mb-6">
+              이대로 진행하면 AI가 상황에 맞게 자동으로 판단합니다.
+              <br />
+              계속 진행하시겠습니까?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-3 rounded-lg bg-zinc-700 
+                  hover:bg-zinc-600 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={async () => {
+                  setShowConfirmModal(false);
+                  if (checkCreditForAdvanced()) {
+                    await executeGeneration();
+                  }
+                }}
+                className="flex-1 py-3 rounded-lg bg-blue-600 
+                  hover:bg-blue-700 transition-colors font-semibold"
+              >
+                진행하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
