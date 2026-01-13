@@ -139,19 +139,24 @@ export default function EmailComposePage() {
   const executeGeneration = async () => {
     setIsGenerating(true);
     try {
-      // 직접 입력 값 병합
+      // 직접 입력 값 병합 (고급 모드가 아니면 tone, length 제외)
       const finalFilters = {
         relationship:
           filters.relationship === 'custom' ? customInputs.relationship : filters.relationship,
         purpose: filters.purpose === 'custom' ? customInputs.purpose : filters.purpose,
-        tone: filters.tone === 'custom' ? customInputs.tone : filters.tone,
-        length: filters.length,
+        tone:
+          isAdvancedMode && filters.tone === 'custom'
+            ? customInputs.tone
+            : isAdvancedMode
+              ? filters.tone
+              : undefined,
+        length: isAdvancedMode ? filters.length : undefined,
       };
 
       // TODO: 실제 API 호출
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      const usesAdvanced = finalFilters.tone || finalFilters.length;
+      const usesAdvanced = isAdvancedMode && (finalFilters.tone || finalFilters.length);
 
       let email = `안녕하세요,\n\n${userInput}\n\n감사합니다.`;
       if (usesAdvanced) {
