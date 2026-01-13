@@ -40,13 +40,24 @@ export default function EmailComposePage() {
     const isKorean = filters.language === 'ko';
 
     if (!isAdvancedMode) {
-      return isKorean ? 750 : 3000;
+      const isGuest = auth.status === 'guest';
+      const isPremium = auth.user?.tier === 'premium';
+
+      if (isGuest) {
+        return isKorean ? 150 : 600;
+      }
+
+      if (isPremium) {
+        return isKorean ? 600 : 2400;
+      }
+
+      return isKorean ? 300 : 1200;
     }
 
     const limits: Record<string, { ko: number; en: number }> = {
-      short: { ko: 600, en: 2400 },
-      medium: { ko: 750, en: 3000 },
-      long: { ko: 1200, en: 4800 },
+      short: { ko: 150, en: 600 },
+      medium: { ko: 300, en: 1200 },
+      long: { ko: 600, en: 2400 },
     };
 
     const lengthLimit = filters.length ? limits[filters.length] : limits.medium;
@@ -74,12 +85,22 @@ export default function EmailComposePage() {
   } => {
     const missing: string[] = [];
 
-    if (!filters.relationship) missing.push('관계');
-    if (!filters.purpose) missing.push('목적');
+    if (!filters.relationship) {
+      missing.push('관계');
+    }
+
+    if (!filters.purpose) {
+      missing.push('목적');
+    }
 
     if (isAdvancedMode) {
-      if (!filters.tone) missing.push('톤');
-      if (!filters.length) missing.push('길이');
+      if (!filters.tone) {
+        missing.push('톤');
+      }
+
+      if (!filters.length) {
+        missing.push('길이');
+      }
     }
 
     return { complete: missing.length === 0, missing };
@@ -88,7 +109,9 @@ export default function EmailComposePage() {
   const checkCreditForAdvanced = (): boolean => {
     const usesAdvancedFilters = filters.tone || filters.length;
 
-    if (!usesAdvancedFilters) return true;
+    if (!usesAdvancedFilters) {
+      return true;
+    }
 
     if (isGuest) {
       setToastMessage('💡 체험 모드: 고급 기능을 무료로 사용 중입니다!');
