@@ -36,7 +36,6 @@ export default function EmailComposePage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [missingFilters, setMissingFilters] = useState<string[]>([]);
 
-  // 입력 제한 계산
   const getInputLimit = (): number => {
     const isKorean = filters.language === 'ko';
 
@@ -69,7 +68,6 @@ export default function EmailComposePage() {
 
   const isGuest = auth.status === 'guest';
 
-  // 필터 완성도 체크
   const checkFiltersComplete = (): {
     complete: boolean;
     missing: string[];
@@ -87,7 +85,6 @@ export default function EmailComposePage() {
     return { complete: missing.length === 0, missing };
   };
 
-  // 크레딧 체크
   const checkCreditForAdvanced = (): boolean => {
     const usesAdvancedFilters = filters.tone || filters.length;
 
@@ -119,7 +116,6 @@ export default function EmailComposePage() {
       return;
     }
 
-    // 필터 완성도 체크
     const { complete, missing } = checkFiltersComplete();
     if (!complete) {
       setMissingFilters(missing);
@@ -127,7 +123,6 @@ export default function EmailComposePage() {
       return;
     }
 
-    // 크레딧 체크
     if (!checkCreditForAdvanced()) {
       return;
     }
@@ -135,11 +130,9 @@ export default function EmailComposePage() {
     await executeGeneration();
   };
 
-  // 실제 생성 로직
   const executeGeneration = async () => {
     setIsGenerating(true);
     try {
-      // 직접 입력 값 병합 (고급 모드가 아니면 tone, length 제외)
       const finalFilters = {
         relationship:
           filters.relationship === 'custom' ? customInputs.relationship : filters.relationship,
@@ -153,7 +146,7 @@ export default function EmailComposePage() {
         length: isAdvancedMode ? filters.length : undefined,
       };
 
-      // TODO: 실제 API 호출
+      // TODO: API 호출 및 피드백 생성
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
       const usesAdvanced = isAdvancedMode && (finalFilters.tone || finalFilters.length);
@@ -165,7 +158,6 @@ export default function EmailComposePage() {
       }
       setGeneratedEmail(email);
 
-      // 고급 기능 사용 시 피드백 추가
       if (usesAdvanced && isAdvancedMode) {
         const feedback = [
           `📋 개선 피드백:\n\n`,
@@ -199,7 +191,6 @@ export default function EmailComposePage() {
     }
   };
 
-  // 복사 버튼 핸들러
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(generatedEmail);
@@ -214,7 +205,7 @@ export default function EmailComposePage() {
     }
   };
 
-  // 템플릿 저장 핸들러
+  // TODO: 템플릿 저장 핸들러
   const handleSaveTemplate = () => {
     setToastMessage('💾 템플릿 저장 기능은 곧 제공될 예정입니다.');
     setShowToast(true);
@@ -227,12 +218,9 @@ export default function EmailComposePage() {
 
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[calc(100vh-120px)]">
-          {/* 왼쪽: 입력 영역 */}
           <div className="flex flex-col gap-6">
-            {/* 필터 섹션 */}
             <div className="rounded-lg bg-zinc-900 p-6 border border-zinc-800">
               <h2 className="text-lg font-semibold mb-4">필터 설정</h2>
-              {/* 언어 선택 */}
               <div className="mb-6 p-4 rounded-lg bg-zinc-800 border border-zinc-700">
                 <label className="block text-sm font-medium text-zinc-300 mb-3">🌐 언어 선택</label>
                 <div className="flex gap-2">
@@ -262,7 +250,6 @@ export default function EmailComposePage() {
               </div>
 
               <div className="space-y-4">
-                {/* 관계 */}
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-2">
                     관계 <span className="text-xs text-green-400">(기본)</span>
@@ -283,7 +270,6 @@ export default function EmailComposePage() {
                     <option value="custom">직접 입력</option>
                   </select>
 
-                  {/* 직접 입력 필드 */}
                   {filters.relationship === 'custom' && (
                     <input
                       type="text"
@@ -302,7 +288,6 @@ export default function EmailComposePage() {
                   )}
                 </div>
 
-                {/* 목적 */}
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-2">
                     목적 <span className="text-xs text-green-400">(기본)</span>
@@ -323,7 +308,6 @@ export default function EmailComposePage() {
                     <option value="custom">직접 입력</option>
                   </select>
 
-                  {/* 직접 입력 필드 */}
                   {filters.purpose === 'custom' && (
                     <input
                       type="text"
@@ -342,7 +326,6 @@ export default function EmailComposePage() {
                   )}
                 </div>
 
-                {/* 톤 (고급) */}
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-2">
                     톤 <span className="text-xs text-yellow-400">(고급)</span>
@@ -364,7 +347,6 @@ export default function EmailComposePage() {
                     <option value="custom">직접 입력</option>
                   </select>
 
-                  {/* 직접 입력 필드 */}
                   {filters.tone === 'custom' && (
                     <input
                       type="text"
@@ -385,7 +367,6 @@ export default function EmailComposePage() {
                   )}
                 </div>
 
-                {/* 길이 (고급) */}
                 <div>
                   <label className="block text-sm font-medium text-zinc-400 mb-2">
                     길이 <span className="text-xs text-yellow-400">(고급)</span>
@@ -408,7 +389,6 @@ export default function EmailComposePage() {
               </div>
             </div>
 
-            {/* 텍스트 입력 */}
             <div
               className="flex-1 flex flex-col rounded-lg 
               bg-zinc-900 p-6 border border-zinc-800"
@@ -416,7 +396,6 @@ export default function EmailComposePage() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">이메일 내용 작성</h2>
 
-                {/* 글자수 카운터 */}
                 <div className="flex items-center gap-2">
                   <div
                     className={`text-sm font-medium ${
@@ -433,7 +412,6 @@ export default function EmailComposePage() {
                 </div>
               </div>
 
-              {/* 진행률 바 */}
               <div className="mb-3 h-1 bg-zinc-800 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-300 ${
@@ -447,7 +425,6 @@ export default function EmailComposePage() {
                 />
               </div>
 
-              {/* 경고 메시지 */}
               {isOverLimit && (
                 <div
                   className="mb-3 p-3 rounded-lg bg-red-900/20 
@@ -477,7 +454,6 @@ export default function EmailComposePage() {
               />
             </div>
 
-            {/* 생성 버튼 */}
             <button
               onClick={handleGenerate}
               disabled={isGenerating || isOverLimit}
@@ -491,7 +467,6 @@ export default function EmailComposePage() {
               {isGenerating ? '생성 중...' : isOverLimit ? '⚠️ 입력 제한 초과' : '이메일 생성'}
             </button>
 
-            {/* 예상 출력 길이 */}
             {!isOverLimit && userInput && (
               <div className="text-xs text-zinc-500 text-center">
                 💡 예상 출력: 약{' '}
@@ -514,9 +489,7 @@ export default function EmailComposePage() {
             )}
           </div>
 
-          {/* 오른쪽: 결과 영역 */}
           <div className="flex flex-col gap-6">
-            {/* 고급 기능 토글 */}
             <div
               className="flex items-center justify-between rounded-lg 
               bg-zinc-900 p-4 border border-zinc-800"
@@ -570,7 +543,6 @@ export default function EmailComposePage() {
                     </pre>
                   </div>
 
-                  {/* 피드백 (고급 기능) */}
                   {generatedRationale && (
                     <div
                       className="mb-4 p-4 rounded-lg bg-yellow-900/20 
@@ -585,7 +557,6 @@ export default function EmailComposePage() {
                     </div>
                   )}
 
-                  {/* 액션 버튼들 */}
                   <div className="space-y-3">
                     <button
                       onClick={handleCopy}
@@ -610,7 +581,6 @@ export default function EmailComposePage() {
         </div>
       </div>
 
-      {/* 토스트 알림 */}
       {showToast && (
         <div
           className="fixed bottom-8 right-8 bg-zinc-800 
@@ -621,7 +591,6 @@ export default function EmailComposePage() {
         </div>
       )}
 
-      {/* 필터 미설정 확인 모달 */}
       {showConfirmModal && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center 

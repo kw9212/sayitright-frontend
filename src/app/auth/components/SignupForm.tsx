@@ -22,7 +22,7 @@ const schema = z
 type FormValues = z.infer<typeof schema>;
 
 type SignupFormProps = {
-  onSuccess?: () => void; // 성공 시 "로그인 탭으로 이동" 같은 동작 연결
+  onSuccess?: () => void;
 };
 
 export default function SignupForm({ onSuccess }: SignupFormProps) {
@@ -68,7 +68,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         <div className="space-y-1">
           <label className="text-sm text-zinc-200">이메일</label>
           <input
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="w-full rounded-md border border-zinc-800 
+              bg-zinc-950 px-3 py-2 text-zinc-100"
             {...form.register('email')}
           />
           {errors.email && <p className="text-xs text-rose-400">{errors.email.message}</p>}
@@ -77,7 +78,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
         <div className="space-y-1">
           <label className="text-sm text-zinc-200">닉네임 (선택)</label>
           <input
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="w-full rounded-md border border-zinc-800 
+              bg-zinc-950 px-3 py-2 text-zinc-100"
             {...form.register('username')}
           />
           {errors.username && <p className="text-xs text-rose-400">{errors.username.message}</p>}
@@ -87,7 +89,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           <label className="text-sm text-zinc-200">비밀번호</label>
           <input
             type="password"
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="w-full rounded-md border border-zinc-800 
+              bg-zinc-950 px-3 py-2 text-zinc-100"
             {...form.register('password')}
           />
           {errors.password && <p className="text-xs text-rose-400">{errors.password.message}</p>}
@@ -97,7 +100,8 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
           <label className="text-sm text-zinc-200">비밀번호 확인</label>
           <input
             type="password"
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="w-full rounded-md border border-zinc-800 
+              bg-zinc-950 px-3 py-2 text-zinc-100"
             {...form.register('passwordConfirm')}
           />
           {errors.passwordConfirm && (

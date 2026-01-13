@@ -41,7 +41,6 @@ export function MainHeader({
     <header className="border-b border-zinc-800 bg-zinc-900">
       <div className="mx-auto max-w-7xl px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* 왼쪽 영역 */}
           <div className="flex items-center gap-4">
             {showBackButton && (
               <button
@@ -70,10 +69,8 @@ export function MainHeader({
 
             {dropdownOpen && (
               <>
-                {/* 배경 클릭 시 닫기 */}
                 <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
 
-                {/* 드롭다운 내용 */}
                 <div className="absolute right-0 mt-2 w-64 rounded-lg bg-zinc-800 shadow-lg ring-1 ring-zinc-700 z-20">
                   <div className="py-1">
                     <div className="px-4 py-3 border-b border-zinc-700">

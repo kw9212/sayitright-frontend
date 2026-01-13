@@ -38,7 +38,8 @@ export default function LoginForm() {
         <div>
           <label className="text-sm text-zinc-200">이메일</label>
           <input
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="w-full rounded-md border border-zinc-800 
+              bg-zinc-950 px-3 py-2 text-zinc-100"
             {...form.register('email')}
           />
         </div>
@@ -47,7 +48,8 @@ export default function LoginForm() {
           <label className="text-sm text-zinc-200">비밀번호</label>
           <input
             type="password"
-            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-zinc-100"
+            className="w-full rounded-md border border-zinc-800 
+              bg-zinc-950 px-3 py-2 text-zinc-100"
             {...form.register('password')}
           />
         </div>

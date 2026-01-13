@@ -41,12 +41,11 @@ export default function IntroPage() {
       onClick={() => router.push(auth.status === 'authenticated' ? '/main' : '/auth')}
       className="relative min-h-screen bg-zinc-950 text-zinc-50"
     >
-      {/* subtle vignette */}
       <div
         className="pointer-events-none absolute inset-0 
           bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.10),transparent_55%)]"
       />
-      {/* neon line */}
+
       <div
         className="pointer-events-none absolute left-1/2 
           top-0 h-full w-px -translate-x-1/2 bg-linear-to-b 
@@ -74,7 +73,6 @@ export default function IntroPage() {
             상황 기반 문구 생성 · 코멘트 · 템플릿 저장
           </p>
 
-          {/* Before & After Demo */}
           <div className="mt-8 space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 backdrop-blur">

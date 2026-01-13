@@ -47,7 +47,6 @@ export default function MainPage() {
     <main className="min-h-screen bg-zinc-950 text-zinc-50">
       <MainHeader showWelcome={true} />
 
-      {/* 메인 콘텐츠 */}
       <div className="mx-auto max-w-7xl px-6 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[calc(100vh-120px)]">
           {menuItems.map((item) => (
@@ -63,9 +62,8 @@ export default function MainPage() {
               <h2 className="text-2xl font-bold mb-2">{item.title}</h2>
               <p className="text-zinc-400 text-sm">{item.description}</p>
 
-              {/* 호버 효과 */}
               <div
-                className="absolute inset-0 bg-gradient-to-br 
+                className="absolute inset-0 bg-linear-to-br 
                 from-blue-500/0 to-purple-500/0 group-hover:from-blue-500/5 
                 group-hover:to-purple-500/5  transition-all 
                 dark:from-blue-500/0 dark:to-purple-500/0 
