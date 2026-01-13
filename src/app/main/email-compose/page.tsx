@@ -4,17 +4,24 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { useState } from 'react';
 
-/**
- * Step 1: 기본 페이지 구조
- * - MainHeader 통합
- * - 좌우 2분할 레이아웃
- * - 텍스트 입력 + 생성 버튼
- */
+type EmailFilters = {
+  relationship: string;
+  purpose: string;
+};
+
 export default function EmailComposePage() {
   const auth = useAuth();
+  const [filters, setFilters] = useState<EmailFilters>({
+    relationship: '',
+    purpose: '',
+  });
   const [userInput, setUserInput] = useState('');
   const [generatedEmail, setGeneratedEmail] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleFilterChange = (key: keyof EmailFilters, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   if (auth.status === 'loading') {
     return <div className="min-h-screen bg-zinc-950 text-zinc-50">로딩중...</div>;
@@ -30,7 +37,13 @@ export default function EmailComposePage() {
     try {
       // TODO: API 호출
       await new Promise((resolve) => setTimeout(resolve, 1000));
-      setGeneratedEmail(`[생성된 이메일]\n\n${userInput}`);
+
+      let email = `[생성된 이메일]\n\n${userInput}`;
+      if (filters.relationship || filters.purpose) {
+        email += `\n\n[필터: 관계=${filters.relationship}, `;
+        email += `목적=${filters.purpose}]`;
+      }
+      setGeneratedEmail(email);
     } catch (error) {
       console.error('생성 실패:', error);
       alert('이메일 생성에 실패했습니다.');
@@ -47,6 +60,55 @@ export default function EmailComposePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 min-h-[calc(100vh-120px)]">
           {/* 왼쪽: 입력 영역 */}
           <div className="flex flex-col gap-6">
+            {/* 필터 섹션 */}
+            <div className="rounded-lg bg-zinc-900 p-6 border border-zinc-800">
+              <h2 className="text-lg font-semibold mb-4">필터 설정</h2>
+
+              <div className="space-y-4">
+                {/* 관계 */}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-2">
+                    관계 <span className="text-xs text-green-400">(기본)</span>
+                  </label>
+                  <select
+                    value={filters.relationship}
+                    onChange={(e) => handleFilterChange('relationship', e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg bg-zinc-800 
+                      border border-zinc-700 focus:border-blue-500 
+                      focus:outline-none transition-colors"
+                  >
+                    <option value="">선택하세요</option>
+                    <option value="professor">교수님</option>
+                    <option value="supervisor">상사</option>
+                    <option value="colleague">동료</option>
+                    <option value="client">고객</option>
+                    <option value="friend">친구</option>
+                  </select>
+                </div>
+
+                {/* 목적 */}
+                <div>
+                  <label className="block text-sm font-medium text-zinc-400 mb-2">
+                    목적 <span className="text-xs text-green-400">(기본)</span>
+                  </label>
+                  <select
+                    value={filters.purpose}
+                    onChange={(e) => handleFilterChange('purpose', e.target.value)}
+                    className="w-full px-4 py-2 rounded-lg bg-zinc-800 
+                      border border-zinc-700 focus:border-blue-500 
+                      focus:outline-none transition-colors"
+                  >
+                    <option value="">선택하세요</option>
+                    <option value="request">요청</option>
+                    <option value="apology">사과</option>
+                    <option value="thank">감사</option>
+                    <option value="inquiry">문의</option>
+                    <option value="report">보고</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* 텍스트 입력 */}
             <div className="flex-1 flex flex-col rounded-lg bg-zinc-900 p-6 border border-zinc-800">
               <h2 className="text-lg font-semibold mb-4">이메일 내용 작성</h2>
