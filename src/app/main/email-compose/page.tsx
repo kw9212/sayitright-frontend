@@ -3,6 +3,8 @@
 import { useAuth } from '@/lib/auth/auth-context';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { useState } from 'react';
+import { generateEmail } from '@/lib/api/email-generation';
+import { renderMarkdown } from '@/lib/utils/markdown';
 
 type EmailFilters = {
   relationship: string;
@@ -33,35 +35,35 @@ export default function EmailComposePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [missingFilters, setMissingFilters] = useState<string[]>([]);
+  const [showAdvancedFilterModal, setShowAdvancedFilterModal] = useState(false);
+  const [missingAdvancedFilters, setMissingAdvancedFilters] = useState<
+    { name: string; defaultValue: string }[]
+  >([]);
 
   const getInputLimit = (): number => {
-    const isKorean = filters.language === 'ko';
-
     if (!isAdvancedMode) {
       const isGuest = auth.status === 'guest';
       const isPremium = auth.user?.tier === 'premium';
 
       if (isGuest) {
-        return isKorean ? 150 : 600;
+        return 150;
       }
 
       if (isPremium) {
-        return isKorean ? 600 : 2400;
+        return 600;
       }
 
-      return isKorean ? 300 : 1200;
+      return 300;
     }
 
-    const limits: Record<string, { ko: number; en: number }> = {
-      short: { ko: 150, en: 600 },
-      medium: { ko: 300, en: 1200 },
-      long: { ko: 600, en: 2400 },
+    const limits: Record<string, number> = {
+      short: 150,
+      medium: 300,
+      long: 600,
     };
 
     const lengthLimit = filters.length ? limits[filters.length] : limits.medium;
-    return isKorean ? lengthLimit.ko : lengthLimit.en;
+    return lengthLimit;
   };
 
   const inputLimit = getInputLimit();
@@ -79,31 +81,63 @@ export default function EmailComposePage() {
 
   const isGuest = auth.status === 'guest';
 
-  const checkFiltersComplete = (): {
-    complete: boolean;
-    missing: string[];
-  } => {
-    const missing: string[] = [];
+  const checkRequiredFilters = (): boolean => {
+    const hasRelationship =
+      filters.relationship &&
+      filters.relationship !== '' &&
+      (filters.relationship !== 'custom' || customInputs.relationship.trim() !== '');
 
-    if (!filters.relationship) {
-      missing.push('관계');
+    if (!hasRelationship) {
+      setToastMessage('📝 수신자와의 관계를 선택해주세요.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return false;
     }
 
-    if (!filters.purpose) {
-      missing.push('목적');
+    const hasPurpose =
+      filters.purpose &&
+      filters.purpose !== '' &&
+      (filters.purpose !== 'custom' || customInputs.purpose.trim() !== '');
+
+    if (!hasPurpose) {
+      setToastMessage('📝 이메일의 목적을 선택해주세요.');
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+      return false;
     }
 
-    if (isAdvancedMode) {
-      if (!filters.tone) {
-        missing.push('톤');
-      }
+    return true;
+  };
 
-      if (!filters.length) {
-        missing.push('길이');
-      }
+  const checkAdvancedFilters = (): boolean => {
+    if (!isAdvancedMode) {
+      return true;
     }
 
-    return { complete: missing.length === 0, missing };
+    const missing: { name: string; defaultValue: string }[] = [];
+
+    const hasTone =
+      filters.tone &&
+      filters.tone !== '' &&
+      (filters.tone !== 'custom' || customInputs.tone.trim() !== '');
+
+    if (!hasTone) {
+      missing.push({ name: '톤', defaultValue: '공손한' });
+    }
+
+    const hasLength = filters.length && filters.length !== '';
+
+    if (!hasLength) {
+      missing.push({ name: '길이', defaultValue: '보통' });
+    }
+
+    if (missing.length > 0) {
+      setMissingAdvancedFilters(missing);
+      setShowAdvancedFilterModal(true);
+      return false;
+    }
+
+    return true;
   };
 
   const checkCreditForAdvanced = (): boolean => {
@@ -139,10 +173,11 @@ export default function EmailComposePage() {
       return;
     }
 
-    const { complete, missing } = checkFiltersComplete();
-    if (!complete) {
-      setMissingFilters(missing);
-      setShowConfirmModal(true);
+    if (!checkRequiredFilters()) {
+      return;
+    }
+
+    if (!checkAdvancedFilters()) {
       return;
     }
 
@@ -156,53 +191,63 @@ export default function EmailComposePage() {
   const executeGeneration = async () => {
     setIsGenerating(true);
     try {
+      const relationship =
+        filters.relationship === 'custom' ? customInputs.relationship : filters.relationship;
+      const purpose = filters.purpose === 'custom' ? customInputs.purpose : filters.purpose;
+      let tone =
+        isAdvancedMode && filters.tone === 'custom'
+          ? customInputs.tone
+          : isAdvancedMode
+            ? filters.tone
+            : undefined;
+      let length = isAdvancedMode ? filters.length : undefined;
+
+      if (isAdvancedMode && (!tone || tone.trim() === '')) {
+        tone = 'polite';
+      }
+      if (isAdvancedMode && (!length || length.trim() === '')) {
+        length = 'medium';
+      }
+
       const finalFilters = {
-        relationship:
-          filters.relationship === 'custom' ? customInputs.relationship : filters.relationship,
-        purpose: filters.purpose === 'custom' ? customInputs.purpose : filters.purpose,
-        tone:
-          isAdvancedMode && filters.tone === 'custom'
-            ? customInputs.tone
-            : isAdvancedMode
-              ? filters.tone
-              : undefined,
-        length: isAdvancedMode ? filters.length : undefined,
+        relationship,
+        purpose,
+        tone,
+        length,
       };
 
-      // TODO: API 호출 및 피드백 생성
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const response = await generateEmail(
+        {
+          draft: userInput,
+          language: filters.language as 'ko' | 'en',
+          relationship: finalFilters.relationship,
+          purpose: finalFilters.purpose,
+          tone: finalFilters.tone,
+          length: finalFilters.length as 'short' | 'medium' | 'long' | undefined,
+          includeRationale: isAdvancedMode && (!!finalFilters.tone || !!finalFilters.length),
+        },
+        auth.accessToken ?? undefined,
+      );
 
-      const usesAdvanced = isAdvancedMode && (finalFilters.tone || finalFilters.length);
-
-      let email = `안녕하세요,\n\n${userInput}\n\n감사합니다.`;
-      if (usesAdvanced) {
-        email += `\n\n[고급 필터 적용: 톤=${finalFilters.tone}, `;
-        email += `길이=${finalFilters.length}]`;
+      if (!response.ok || !response.data) {
+        throw new Error(response.error || response.message || '이메일 생성에 실패했습니다.');
       }
-      setGeneratedEmail(email);
 
-      if (usesAdvanced && isAdvancedMode) {
-        const feedback = [
-          `📋 개선 피드백:\n\n`,
-          `1. 관계(${finalFilters.relationship})와 `,
-          `목적(${finalFilters.purpose})을 고려하여 `,
-          `적절한 표현을 선택했습니다.\n`,
-          `2. 톤(${finalFilters.tone})에 맞춰 `,
-          `문장의 형식과 어휘를 조정했습니다.\n`,
-          `3. 길이(${finalFilters.length})를 고려하여 `,
-          `핵심 내용을 효과적으로 구성했습니다.\n\n`,
-          `이러한 요소들을 종합하여 수신자에게 `,
-          `가장 적절한 형태로 메시지를 전달합니다.`,
-        ].join('');
+      setGeneratedEmail(response.data.email);
 
-        setGeneratedRationale(feedback);
-
-        // TODO: 크레딧 차감 API 호출
-        if (!isGuest) {
-          console.log('크레딧 1 차감됨');
-        }
+      if (response.data.rationale) {
+        setGeneratedRationale(response.data.rationale);
       } else {
         setGeneratedRationale('');
+      }
+
+      if (response.data.metadata.creditCharged > 0) {
+        const remaining = response.data.metadata.remainingCredits ?? 0;
+        setToastMessage(
+          `✅ 이메일이 생성되었습니다. (크레딧 ${response.data.metadata.creditCharged}개 사용, 잔액: ${remaining}개)`,
+        );
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
       }
     } catch (error) {
       console.error('이메일 생성 실패:', error);
@@ -496,17 +541,17 @@ export default function EmailComposePage() {
                 {filters.language === 'ko'
                   ? `${
                       filters.length === 'long'
-                        ? '1500-2000'
+                        ? '800-1000'
                         : filters.length === 'medium'
-                          ? '750-1000'
-                          : '450-600'
+                          ? '400-500'
+                          : '200-250'
                     }자`
                   : `${
                       filters.length === 'long'
-                        ? '700-800'
+                        ? '600-700'
                         : filters.length === 'medium'
-                          ? '350-400'
-                          : '200-250'
+                          ? '300-350'
+                          : '150-180'
                     }단어`}
               </div>
             )}
@@ -561,9 +606,7 @@ export default function EmailComposePage() {
               {generatedEmail && !isGenerating && (
                 <>
                   <div className="flex-1 overflow-auto mb-4">
-                    <pre className="whitespace-pre-wrap text-sm leading-relaxed">
-                      {generatedEmail}
-                    </pre>
+                    <div className="text-sm leading-relaxed">{renderMarkdown(generatedEmail)}</div>
                   </div>
 
                   {generatedRationale && (
@@ -571,12 +614,9 @@ export default function EmailComposePage() {
                       className="mb-4 p-4 rounded-lg bg-yellow-900/20 
                       border border-yellow-700/30"
                     >
-                      <pre
-                        className="whitespace-pre-wrap text-xs 
-                        leading-relaxed text-yellow-200"
-                      >
-                        {generatedRationale}
-                      </pre>
+                      <div className="text-xs leading-relaxed text-yellow-200">
+                        {renderMarkdown(generatedRationale)}
+                      </div>
                     </div>
                   )}
 
@@ -614,38 +654,44 @@ export default function EmailComposePage() {
         </div>
       )}
 
-      {showConfirmModal && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center 
-          justify-center z-50"
-        >
-          <div
-            className="bg-zinc-900 border border-zinc-700 rounded-lg 
-            p-6 max-w-md mx-4"
-          >
-            <h3 className="text-xl font-semibold mb-4">⚠️ 필터 미설정 확인</h3>
-            <p className="text-zinc-300 mb-4">다음 필터가 설정되지 않았습니다:</p>
-            <ul className="list-disc list-inside text-zinc-400 mb-6 space-y-1">
-              {missingFilters.map((item) => (
-                <li key={item}>{item}</li>
+      {showAdvancedFilterModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 max-w-md mx-4">
+            <h3 className="text-xl font-semibold mb-4">⚙️ 고급 필터 미설정 확인</h3>
+            <p className="text-zinc-300 mb-4">다음 고급 필터가 설정되지 않았습니다:</p>
+            <ul className="list-disc list-inside text-zinc-400 mb-4 space-y-1">
+              {missingAdvancedFilters.map((item) => (
+                <li key={item.name}>{item.name}</li>
               ))}
             </ul>
+            <div className="bg-blue-900/20 border border-blue-700/30 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-200 mb-2">
+                💡 <strong>빈 칸으로 제출하면 기본값이 적용됩니다:</strong>
+              </p>
+              <ul className="text-xs text-blue-300 ml-4 space-y-1">
+                {missingAdvancedFilters.map((item) => (
+                  <li key={item.name}>
+                    • {item.name}: <strong>{item.defaultValue}</strong>
+                  </li>
+                ))}
+              </ul>
+            </div>
             <p className="text-sm text-zinc-400 mb-6">
-              이대로 진행하면 AI가 상황에 맞게 자동으로 판단합니다.
+              기본값으로 진행하시겠습니까?
               <br />
-              계속 진행하시겠습니까?
+              <span className="text-xs text-zinc-500">(돌아가서 직접 설정할 수도 있습니다)</span>
             </p>
             <div className="flex gap-3">
               <button
-                onClick={() => setShowConfirmModal(false)}
+                onClick={() => setShowAdvancedFilterModal(false)}
                 className="flex-1 py-3 rounded-lg bg-zinc-700 
                   hover:bg-zinc-600 transition-colors"
               >
-                취소
+                돌아가기
               </button>
               <button
                 onClick={async () => {
-                  setShowConfirmModal(false);
+                  setShowAdvancedFilterModal(false);
                   if (checkCreditForAdvanced()) {
                     await executeGeneration();
                   }
@@ -653,7 +699,7 @@ export default function EmailComposePage() {
                 className="flex-1 py-3 rounded-lg bg-blue-600 
                   hover:bg-blue-700 transition-colors font-semibold"
               >
-                진행하기
+                기본값으로 진행
               </button>
             </div>
           </div>
