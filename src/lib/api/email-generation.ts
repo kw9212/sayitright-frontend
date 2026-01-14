@@ -10,7 +10,7 @@ export type GenerateEmailRequest = {
 
 export type GenerateEmailResponse = {
   ok: boolean;
-  data?: {
+  data: {
     email: string;
     rationale?: string;
     appliedFilters: {
@@ -27,8 +27,6 @@ export type GenerateEmailResponse = {
       remainingCredits?: number;
     };
   };
-  error?: string;
-  message?: string;
 };
 
 export async function generateEmail(
