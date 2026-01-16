@@ -33,7 +33,7 @@ export default function MainPage() {
       title: '아카이브',
       description: '작성 히스토리를 확인하세요',
       icon: '📦',
-      route: '/main/archive',
+      route: '/main/archives',
     },
     {
       title: '표현/용어 노트',
