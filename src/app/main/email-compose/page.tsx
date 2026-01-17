@@ -2,9 +2,13 @@
 
 import { useAuth } from '@/lib/auth/auth-context';
 import { MainHeader } from '@/components/layout/MainHeader';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { generateEmail } from '@/lib/api/email-generation';
 import { renderMarkdown } from '@/lib/utils/markdown';
+import { tokenStore } from '@/lib/auth/token';
+import { templatesRepository } from '@/lib/repositories/templates.repository';
+import { toast } from 'sonner';
+import SaveTemplateModal from './SaveTemplateModal';
 
 type EmailFilters = {
   relationship: string;
@@ -39,6 +43,28 @@ export default function EmailComposePage() {
   const [missingAdvancedFilters, setMissingAdvancedFilters] = useState<
     { name: string; defaultValue: string }[]
   >([]);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+
+  useEffect(() => {
+    const refreshTokenOnMount = async () => {
+      if (auth.status === 'authenticated' && tokenStore.getAccessToken()) {
+        try {
+          const response = await fetch('/api/auth/refresh', { method: 'POST' });
+          const data = await response.json();
+
+          if (response.ok && data?.data?.accessToken) {
+            tokenStore.setAccessToken(data.data.accessToken);
+          }
+        } catch (error) {
+          console.error('토큰 갱신 실패:', error);
+        }
+      }
+    };
+
+    void refreshTokenOnMount();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getInputLimit = (): number => {
     if (!isAdvancedMode) {
@@ -67,7 +93,7 @@ export default function EmailComposePage() {
   };
 
   const inputLimit = getInputLimit();
-  const currentLength = userInput.length;
+  const currentLength = userInput.trim().length;
   const isOverLimit = currentLength > inputLimit;
   const limitPercentage = (currentLength / inputLimit) * 100;
 
@@ -216,22 +242,15 @@ export default function EmailComposePage() {
         length,
       };
 
-      const response = await generateEmail(
-        {
-          draft: userInput,
-          language: filters.language as 'ko' | 'en',
-          relationship: finalFilters.relationship,
-          purpose: finalFilters.purpose,
-          tone: finalFilters.tone,
-          length: finalFilters.length as 'short' | 'medium' | 'long' | undefined,
-          includeRationale: isAdvancedMode && (!!finalFilters.tone || !!finalFilters.length),
-        },
-        auth.accessToken ?? undefined,
-      );
-
-      if (!response.ok || !response.data) {
-        throw new Error(response.error || response.message || '이메일 생성에 실패했습니다.');
-      }
+      const response = await generateEmail({
+        draft: userInput,
+        language: filters.language as 'ko' | 'en',
+        relationship: finalFilters.relationship,
+        purpose: finalFilters.purpose,
+        tone: finalFilters.tone,
+        length: finalFilters.length as 'short' | 'medium' | 'long' | undefined,
+        includeRationale: isAdvancedMode && (!!finalFilters.tone || !!finalFilters.length),
+      });
 
       setGeneratedEmail(response.data.email);
 
@@ -251,7 +270,10 @@ export default function EmailComposePage() {
       }
     } catch (error) {
       console.error('이메일 생성 실패:', error);
-      setToastMessage('❌ 이메일 생성에 실패했습니다.');
+
+      const errorMessage = error instanceof Error ? error.message : '이메일 생성에 실패했습니다.';
+
+      setToastMessage(`❌ ${errorMessage}`);
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } finally {
@@ -273,11 +295,48 @@ export default function EmailComposePage() {
     }
   };
 
-  // TODO: 템플릿 저장 핸들러
   const handleSaveTemplate = () => {
-    setToastMessage('💾 템플릿 저장 기능은 곧 제공될 예정입니다.');
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+    if (!generatedEmail) {
+      toast.error('저장할 이메일이 없습니다. 먼저 이메일을 생성해주세요.');
+      return;
+    }
+
+    if (auth.status !== 'authenticated') {
+      toast.error('템플릿 저장은 로그인이 필요합니다.');
+      return;
+    }
+
+    setShowSaveTemplateModal(true);
+  };
+
+  const handleConfirmSaveTemplate = async (title: string) => {
+    setIsSavingTemplate(true);
+
+    try {
+      const finalRelationship = filters.relationship || customInputs.relationship;
+      const finalPurpose = filters.purpose || customInputs.purpose;
+      const finalTone = filters.tone || customInputs.tone || 'polite';
+
+      const response = await templatesRepository.create({
+        title: title || undefined,
+        content: generatedEmail,
+        tone: finalTone,
+        relationship: finalRelationship || undefined,
+        purpose: finalPurpose || undefined,
+        rationale: generatedRationale || undefined,
+      });
+
+      if (response.ok) {
+        toast.success('✅ 템플릿이 저장되었습니다!');
+        setShowSaveTemplateModal(false);
+      }
+    } catch (error) {
+      console.error('템플릿 저장 실패:', error);
+      const errorMessage = error instanceof Error ? error.message : '템플릿 저장에 실패했습니다.';
+      toast.error(errorMessage);
+    } finally {
+      setIsSavingTemplate(false);
+    }
   };
 
   return (
@@ -705,6 +764,13 @@ export default function EmailComposePage() {
           </div>
         </div>
       )}
+
+      <SaveTemplateModal
+        isOpen={showSaveTemplateModal}
+        onClose={() => setShowSaveTemplateModal(false)}
+        onConfirm={handleConfirmSaveTemplate}
+        isLoading={isSavingTemplate}
+      />
     </main>
   );
 }
