@@ -1,3 +1,5 @@
+import { tokenStore } from '../auth/token';
+
 export type GenerateEmailRequest = {
   draft: string;
   language: 'ko' | 'en';
@@ -29,11 +31,29 @@ export type GenerateEmailResponse = {
   };
 };
 
+async function refreshAccessToken(): Promise<string | null> {
+  try {
+    const response = await fetch('/api/auth/refresh', { method: 'POST' });
+    const data = await response.json();
+
+    if (response.ok && data?.data?.accessToken) {
+      const newToken = data.data.accessToken;
+      tokenStore.setAccessToken(newToken);
+      return newToken;
+    }
+  } catch (error) {
+    console.error('Token refresh failed:', error);
+  }
+  return null;
+}
+
 export async function generateEmail(
   request: GenerateEmailRequest,
-  accessToken?: string,
+  retryCount = 0,
 ): Promise<GenerateEmailResponse> {
-  const headers: HeadersInit = {
+  const accessToken = tokenStore.getAccessToken();
+
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
@@ -49,10 +69,23 @@ export async function generateEmail(
   });
 
   if (!response.ok) {
+    if (response.status === 401 && retryCount === 0) {
+      const newToken = await refreshAccessToken();
+
+      if (newToken) {
+        return generateEmail(request, retryCount + 1);
+      }
+    }
+
     const error = await response.json().catch(() => ({
       message: '이메일 생성 중 오류가 발생했습니다.',
     }));
-    throw new Error(error.message || '이메일 생성 중 오류가 발생했습니다.');
+
+    const errorMessage = Array.isArray(error.message)
+      ? error.message.join(', ')
+      : error.message || '이메일 생성 중 오류가 발생했습니다.';
+
+    throw new Error(errorMessage);
   }
 
   return response.json();
