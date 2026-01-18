@@ -38,6 +38,7 @@ export default function NotesPage() {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [tokenRefreshed, setTokenRefreshed] = useState(false);
 
   useEffect(() => {
     const refreshTokenOnMount = async () => {
@@ -53,14 +54,16 @@ export default function NotesPage() {
           console.error('토큰 갱신 실패:', error);
         }
       }
+      setTokenRefreshed(true);
     };
 
-    void refreshTokenOnMount();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (auth.status === 'authenticated') {
+      void refreshTokenOnMount();
+    }
+  }, [auth.status]);
 
   const fetchNotes = useCallback(async () => {
-    if (auth.status !== 'authenticated') {
+    if (auth.status !== 'authenticated' || !tokenRefreshed) {
       return;
     }
 
@@ -82,7 +85,7 @@ export default function NotesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth.status, searchTerm, sortOption, currentPage]);
+  }, [auth.status, tokenRefreshed, searchTerm, sortOption, currentPage]);
 
   useEffect(() => {
     fetchNotes();
