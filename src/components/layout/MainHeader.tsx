@@ -58,7 +58,6 @@ export function MainHeader({
             {title && <h1 className="text-xl font-semibold">{title}</h1>}
           </div>
 
-          {/* 오른쪽: 드롭다운 메뉴 */}
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
