@@ -1,58 +1,51 @@
 import { NextResponse } from 'next/server';
 
-async function fetchMe(auth?: string) {
-  return fetch(`${process.env.API_BASE_URL}/v1/users/me`, {
-    headers: auth ? { Authorization: auth } : {},
-  });
-}
-
 export async function GET(req: Request) {
-  const auth = req.headers.get('authorization') ?? undefined;
+  const authHeader = req.headers.get('authorization');
 
-  let r = await fetchMe(auth);
-  if (r.status === 401) {
-    const cookie = req.headers.get('cookie') ?? '';
-
-    const refreshRes = await fetch('http://localhost:3000/api/auth/refresh', {
-      method: 'POST',
-      headers: { cookie },
-    });
-
-    const refreshData = await refreshRes.json();
-    if (!refreshRes.ok) {
-      return NextResponse.json(refreshData, { status: refreshRes.status });
-    }
-
-    const newAccessToken = refreshData?.data?.accessToken;
-    if (!newAccessToken) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: 'UNAUTHORIZED',
-            message: 'Refresh succeeded but no access token returned',
-            details: null,
-          },
-        },
-        { status: 401 },
-      );
-    }
-
-    r = await fetchMe(`Bearer ${newAccessToken}`);
-
-    const data2 = await r.json();
-    const res2 = NextResponse.json(data2, { status: r.status });
-
-    res2.headers.set('x-new-access-token', newAccessToken);
-
-    const setCookie = refreshRes.headers.get('set-cookie');
-    if (setCookie) {
-      res2.headers.set('set-cookie', setCookie);
-    }
-
-    return res2;
+  if (!authHeader) {
+    return NextResponse.json({ error: { message: 'Unauthorized' } }, { status: 401 });
   }
 
-  const data = await r.json();
-  return NextResponse.json(data, { status: r.status });
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/v1/users/me`, {
+    method: 'GET',
+    headers: {
+      Authorization: authHeader,
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    return NextResponse.json(data, { status: response.status });
+  }
+
+  // 백엔드가 이미 { ok: true, data: user } 형태로 반환하므로 그대로 전달
+  return NextResponse.json(data, { status: 200 });
+}
+
+export async function PUT(req: Request) {
+  const body = await req.json();
+  const authHeader = req.headers.get('authorization');
+
+  if (!authHeader) {
+    return NextResponse.json({ error: { message: 'Unauthorized' } }, { status: 401 });
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/v1/users/me`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: authHeader,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    return NextResponse.json(data, { status: response.status });
+  }
+
+  return NextResponse.json(data, { status: 200 });
 }

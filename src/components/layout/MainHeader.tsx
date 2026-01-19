@@ -3,6 +3,7 @@
 import { useAuth } from '@/lib/auth/auth-context';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { ProfileEditModal } from './ProfileEditModal';
 
 type MainHeaderProps = {
   showWelcome?: boolean;
@@ -18,7 +19,7 @@ export function MainHeader({
   const auth = useAuth();
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
-
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const handleLogoutThisDevice = async () => {
     await auth.logout();
     router.push('/');
@@ -27,6 +28,11 @@ export function MainHeader({
   const handleLogoutAllDevices = async () => {
     await auth.logoutAll();
     router.push('/');
+  };
+
+  const handleProfileEdit = () => {
+    setDropdownOpen(false);
+    setProfileModalOpen(true);
   };
 
   const handleCreditRecharge = () => {
@@ -80,6 +86,13 @@ export function MainHeader({
                     </div>
 
                     <button
+                      onClick={handleProfileEdit}
+                      className="block w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 transition-colors"
+                    >
+                      👤 프로필 변경
+                    </button>
+
+                    <button
                       onClick={handleCreditRecharge}
                       className="block w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 transition-colors"
                     >
@@ -116,6 +129,12 @@ export function MainHeader({
           </div>
         </div>
       </div>
+
+      <ProfileEditModal
+        isOpen={profileModalOpen}
+        onClose={() => setProfileModalOpen(false)}
+        currentUsername={auth.user?.username}
+      />
     </header>
   );
 }
