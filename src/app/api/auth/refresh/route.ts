@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 
-const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:3001';
-
 export async function POST(req: Request) {
   const cookie = req.headers.get('cookie') ?? '';
-
-  const r = await fetch(`${API_BASE}/v1/auth/refresh`, {
+  const r = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/v1/auth/refresh`, {
     method: 'POST',
     headers: {
       cookie,
