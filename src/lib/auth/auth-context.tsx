@@ -24,6 +24,7 @@ type AuthContextValue = {
   loginLocal: (params: { email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -63,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const token = tokenStore.getAccessToken();
     if (token) {
       const { r, data } = await fetchMe(token);
-      if (r.ok && data?.data) {
+      if (r.ok && data?.ok && data?.data) {
         setUser(data.data);
         setToken(token);
         setStatus('authenticated');
@@ -85,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(newAccessToken);
 
     const { r: r2, data: data2 } = await fetchMe(newAccessToken);
-    if (r2.ok && data2?.data) {
+    if (r2.ok && data2?.ok && data2?.data) {
       setUser(data2.data);
       setStatus('authenticated');
       return;
@@ -117,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(token);
 
     const { r: r2, data: data2 } = await fetchMe(token);
-    if (r2.ok && data2?.data) {
+    if (r2.ok && data2?.ok && data2?.data) {
       setUser(data2.data);
       setStatus('authenticated');
       return;
@@ -140,13 +141,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus('guest');
   };
 
+  const refreshUser = async () => {
+    const token = tokenStore.getAccessToken();
+    if (!token) {
+      return;
+    }
+
+    const { r, data } = await fetchMe(token);
+    if (r.ok && data?.ok && data?.data) {
+      setUser(data.data);
+    }
+  };
+
   useEffect(() => {
     void bootstrap();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ status, user, accessToken, bootstrap, loginLocal, logout, logoutAll }),
+    () => ({
+      status,
+      user,
+      accessToken,
+      bootstrap,
+      loginLocal,
+      logout,
+      logoutAll,
+      refreshUser,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [status, user, accessToken],
   );
