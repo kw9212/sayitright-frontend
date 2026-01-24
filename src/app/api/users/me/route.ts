@@ -7,7 +7,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: { message: 'Unauthorized' } }, { status: 401 });
   }
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/v1/users/me`, {
+  const apiUrl = process.env.API_BASE_URL || 'http://localhost:3001';
+  const response = await fetch(`${apiUrl}/v1/users/me`, {
     method: 'GET',
     headers: {
       Authorization: authHeader,
@@ -32,7 +33,8 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: { message: 'Unauthorized' } }, { status: 401 });
   }
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/v1/users/me`, {
+  const apiUrl = process.env.API_BASE_URL || 'http://localhost:3001';
+  const response = await fetch(`${apiUrl}/v1/users/me`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',

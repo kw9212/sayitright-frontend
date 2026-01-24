@@ -2,15 +2,13 @@ import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   const body = await req.json();
+  const apiUrl = process.env.API_BASE_URL || 'http://localhost:3001';
 
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_BASE_URL}/v1/auth/send-verification-code`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    },
-  );
+  const response = await fetch(`${apiUrl}/v1/auth/send-verification-code`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 
   const data = await response.json();
 
