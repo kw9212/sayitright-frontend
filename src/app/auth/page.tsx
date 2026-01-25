@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
 import { useAuth } from '@/lib/auth/auth-context';
 
-export default function AuthPage() {
+function AuthPageContent() {
   const router = useRouter();
-  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') as 'login' | 'signup') || 'login';
+  const [tab, setTab] = useState<'login' | 'signup'>(initialTab);
   const auth = useAuth();
 
   useEffect(() => {
@@ -53,5 +55,21 @@ export default function AuthPage() {
         </Card>
       </div>
     </main>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-zinc-950 text-zinc-50">
+          <div className="flex min-h-screen items-center justify-center">
+            <div className="text-zinc-400">로딩중...</div>
+          </div>
+        </main>
+      }
+    >
+      <AuthPageContent />
+    </Suspense>
   );
 }

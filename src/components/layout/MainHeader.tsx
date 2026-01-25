@@ -154,14 +154,14 @@ export function MainHeader({
                     {auth.status === 'guest' ? (
                       <>
                         <button
-                          onClick={() => router.push('/auth/signup')}
+                          onClick={() => router.push('/auth?tab=signup')}
                           className="block w-full px-4 py-2 text-left text-sm 
                             hover:bg-zinc-700 transition-colors text-emerald-300"
                         >
                           ✨ 회원가입하기
                         </button>
                         <button
-                          onClick={() => router.push('/auth/login')}
+                          onClick={() => router.push('/auth?tab=login')}
                           className="block w-full px-4 py-2 text-left text-sm 
                             hover:bg-zinc-700 transition-colors text-blue-300"
                         >
