@@ -22,6 +22,7 @@ type AuthContextValue = {
   accessToken: string | null;
   bootstrap: () => Promise<void>;
   loginLocal: (params: { email: string; password: string }) => Promise<void>;
+  loginAsGuest: () => void;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -153,6 +154,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginAsGuest = () => {
+    setUser(null);
+    setToken(null);
+    setStatus('guest');
+  };
+
   useEffect(() => {
     void bootstrap();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,6 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       accessToken,
       bootstrap,
       loginLocal,
+      loginAsGuest,
       logout,
       logoutAll,
       refreshUser,

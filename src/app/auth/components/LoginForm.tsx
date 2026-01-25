@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth/auth-context';
+import { useRouter } from 'next/navigation';
 
 const schema = z.object({
   email: z.string().email(),
@@ -16,6 +17,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginForm() {
   const auth = useAuth();
+  const router = useRouter();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -30,6 +32,11 @@ export default function LoginForm() {
         message: e instanceof Error ? e.message : '로그인 실패',
       });
     }
+  };
+
+  const handleGuestMode = () => {
+    auth.loginAsGuest();
+    router.push('/main');
   };
 
   return (
@@ -61,6 +68,31 @@ export default function LoginForm() {
         <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>
           로그인
         </Button>
+
+        <div className="relative py-2">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-zinc-800" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-zinc-950/40 px-2 text-zinc-500">또는</span>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full bg-linear-to-r from-blue-600/10 to-purple-600/10 
+            border-blue-500/30 hover:from-blue-600/20 hover:to-purple-600/20 
+            text-blue-300 hover:text-blue-200"
+          onClick={handleGuestMode}
+        >
+          <span className="mr-2">🎭</span>
+          게스트 모드로 사용해보기
+        </Button>
+
+        <p className="text-xs text-center text-zinc-500 mt-2">
+          💡 로그인 없이 모든 기능을 체험해볼 수 있습니다
+        </p>
       </form>
     </Card>
   );
