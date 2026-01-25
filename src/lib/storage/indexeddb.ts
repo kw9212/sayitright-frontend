@@ -32,8 +32,8 @@ export interface GuestArchive {
 export interface GuestNote {
   id: string;
   term: string;
-  description?: string;
-  example?: string;
+  description: string | null;
+  example: string | null;
   isStarred: boolean;
   createdAt: string;
   updatedAt: string;
@@ -48,12 +48,12 @@ class IndexedDBHelper {
     }
 
     this.dbPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      const request = window.indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
 
-      request.onupgradeneeded = (event) => {
+      request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
         const db = (event.target as IDBOpenDBRequest).result;
 
         // Templates store
