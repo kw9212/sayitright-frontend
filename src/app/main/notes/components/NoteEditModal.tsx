@@ -12,7 +12,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/lib/auth/auth-context';
 import { Note } from '@/lib/repositories/notes.repository';
+import { canCreateNote } from '@/lib/storage/guest-limits';
+import { GuestLimitModal } from '@/components/layout/GuestLimitModal';
 
 interface NoteEditModalProps {
   isOpen: boolean;
@@ -22,10 +25,14 @@ interface NoteEditModalProps {
 }
 
 export function NoteEditModal({ isOpen, onClose, onSave, note }: NoteEditModalProps) {
+  const auth = useAuth();
+  const isGuest = auth.status === 'guest';
+
   const [term, setTerm] = useState('');
   const [description, setDescription] = useState('');
   const [example, setExample] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
 
   useEffect(() => {
     if (note) {
@@ -41,6 +48,12 @@ export function NoteEditModal({ isOpen, onClose, onSave, note }: NoteEditModalPr
 
   const handleSubmit = async () => {
     if (!term.trim()) {
+      return;
+    }
+
+    // 게스트 모드: 새 노트 생성 시 한도 체크 (수정은 제한 없음)
+    if (isGuest && !note && !canCreateNote()) {
+      setShowGuestLimitModal(true);
       return;
     }
 
@@ -137,6 +150,12 @@ export function NoteEditModal({ isOpen, onClose, onSave, note }: NoteEditModalPr
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <GuestLimitModal
+        isOpen={showGuestLimitModal}
+        onClose={() => setShowGuestLimitModal(false)}
+        limitType="note"
+      />
     </Dialog>
   );
 }

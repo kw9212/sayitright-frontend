@@ -16,7 +16,7 @@ import { MainHeader } from '@/components/layout/MainHeader';
 import { tokenStore } from '@/lib/auth/token';
 import { notesRepository, NoteListItem, Note } from '@/lib/repositories/notes.repository';
 import { guestNotesRepository } from '@/lib/repositories/guest-notes.repository';
-import { decrementNoteCount } from '@/lib/storage/guest-limits';
+import { decrementNoteCount, incrementNoteCount } from '@/lib/storage/guest-limits';
 import { NoteItem } from './components/NoteItem';
 import { NoteEditModal } from './components/NoteEditModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
@@ -120,11 +120,19 @@ export default function NotesPage() {
 
   const handleSaveNote = async (data: { term: string; description?: string; example?: string }) => {
     try {
+      const repository = isGuest ? guestNotesRepository : notesRepository;
+
       if (editingNote) {
-        await notesRepository.update(editingNote.id, data);
+        await repository.update(editingNote.id, data);
         toast.success('용어가 수정되었습니다.');
       } else {
-        await notesRepository.create(data);
+        await repository.create(data);
+
+        // 게스트 모드: 노트 카운트 증가
+        if (isGuest) {
+          incrementNoteCount();
+        }
+
         toast.success('용어가 추가되었습니다.');
       }
       await fetchNotes();
@@ -179,7 +187,8 @@ export default function NotesPage() {
 
   const handleToggleStar = async (id: string) => {
     try {
-      await notesRepository.toggleStar(id);
+      const repository = isGuest ? guestNotesRepository : notesRepository;
+      await repository.toggleStar(id);
       setNotes((prev) =>
         prev.map((note) => (note.id === id ? { ...note, isStarred: !note.isStarred } : note)),
       );
