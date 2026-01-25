@@ -5,6 +5,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth/auth-context';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { archivesRepository, type ArchiveListItem } from '@/lib/repositories/archives.repository';
+import { guestArchivesRepository } from '@/lib/repositories/guest-archives.repository';
+import { decrementArchiveCount } from '@/lib/storage/guest-limits';
 import ArchiveRow from './components/ArchiveRow';
 import ArchiveFilters from './components/ArchiveFilters';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
@@ -12,6 +14,7 @@ import ConvertToTemplateModal from './components/ConvertToTemplateModal';
 
 export default function ArchivesPage() {
   const auth = useAuth();
+  const isGuest = auth.status === 'guest';
 
   const [archives, setArchives] = useState<ArchiveListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -58,7 +61,8 @@ export default function ArchivesPage() {
 
       setLoading(true);
       try {
-        const response = await archivesRepository.list({
+        const repository = isGuest ? guestArchivesRepository : archivesRepository;
+        const response = await repository.list({
           page: pageNum,
           limit: 20,
           ...filters,
@@ -115,7 +119,7 @@ export default function ArchivesPage() {
         setLoading(false);
       }
     },
-    [filters, loading],
+    [filters, loading, isGuest],
   );
 
   useEffect(() => {
@@ -126,7 +130,10 @@ export default function ArchivesPage() {
       initialLoadDoneRef.current,
     );
 
-    if (auth.status === 'authenticated' && !initialLoadDoneRef.current) {
+    if (
+      (auth.status === 'authenticated' || auth.status === 'guest') &&
+      !initialLoadDoneRef.current
+    ) {
       console.log('[Archives] 초기 로드 시작');
       initialLoadDoneRef.current = true;
       setPage(1);
@@ -150,7 +157,7 @@ export default function ArchivesPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (
-        auth.status === 'authenticated' &&
+        (auth.status === 'authenticated' || auth.status === 'guest') &&
         archives.length === 0 &&
         !loading &&
         initialLoadDoneRef.current === false
@@ -234,13 +241,19 @@ export default function ArchivesPage() {
 
   const handleConfirmDelete = async () => {
     const count = selectedIds.size;
+    const repository = isGuest ? guestArchivesRepository : archivesRepository;
 
-    toast.promise(Promise.all(Array.from(selectedIds).map((id) => archivesRepository.remove(id))), {
+    toast.promise(Promise.all(Array.from(selectedIds).map((id) => repository.remove(id))), {
       loading: `${count}개 아카이브 삭제 중...`,
       success: () => {
         setArchives((prev) => prev.filter((a) => !selectedIds.has(a.id)));
         setTotal((prev) => prev - count);
         setSelectedIds(new Set());
+
+        // 게스트 모드: 사용량 카운트 감소
+        if (isGuest) {
+          Array.from(selectedIds).forEach(() => decrementArchiveCount());
+        }
         setShowDeleteModal(false);
         setIsDeleteMode(false);
         return `${count}개 아카이브가 삭제되었습니다.`;
@@ -261,22 +274,6 @@ export default function ArchivesPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div>로딩 중...</div>
-      </div>
-    );
-  }
-
-  if (auth.status === 'guest') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-xl mb-4">로그인이 필요합니다.</p>
-          <button
-            onClick={() => (window.location.href = '/intro')}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg"
-          >
-            로그인하러 가기
-          </button>
-        </div>
       </div>
     );
   }

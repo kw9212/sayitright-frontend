@@ -8,6 +8,8 @@ import {
   templatesRepository,
   type TemplateListItem,
 } from '@/lib/repositories/templates.repository';
+import { guestTemplatesRepository } from '@/lib/repositories/guest-templates.repository';
+import { decrementTemplateCount } from '@/lib/storage/guest-limits';
 import TemplateCard from './components/TemplateCard';
 import TemplateFilters from './components/TemplateFilters';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
@@ -15,6 +17,7 @@ import TemplateDetailModal from './components/TemplateDetailModal';
 
 export default function TemplatesPage() {
   const auth = useAuth();
+  const isGuest = auth.status === 'guest';
 
   const [templates, setTemplates] = useState<TemplateListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -67,7 +70,8 @@ export default function TemplatesPage() {
           q: filters.q?.trim() || '',
         };
 
-        const response = await templatesRepository.list({
+        const repository = isGuest ? guestTemplatesRepository : templatesRepository;
+        const response = await repository.list({
           page: pageNum,
           limit: 20,
           ...apiFilters,
@@ -127,7 +131,10 @@ export default function TemplatesPage() {
   );
 
   useEffect(() => {
-    if (auth.status === 'authenticated' && !initialLoadDoneRef.current) {
+    if (
+      (auth.status === 'authenticated' || auth.status === 'guest') &&
+      !initialLoadDoneRef.current
+    ) {
       initialLoadDoneRef.current = true;
       setPage(1);
       setHasMore(true);
@@ -150,7 +157,7 @@ export default function TemplatesPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (
-        auth.status === 'authenticated' &&
+        (auth.status === 'authenticated' || auth.status === 'guest') &&
         templates.length === 0 &&
         !loading &&
         initialLoadDoneRef.current === false
@@ -234,25 +241,29 @@ export default function TemplatesPage() {
 
   const handleConfirmDelete = async () => {
     const count = selectedIds.size;
+    const repository = isGuest ? guestTemplatesRepository : templatesRepository;
 
-    toast.promise(
-      Promise.all(Array.from(selectedIds).map((id) => templatesRepository.remove(id))),
-      {
-        loading: `${count}개 템플릿 삭제 중...`,
-        success: () => {
-          setTemplates((prev) => prev.filter((t) => !selectedIds.has(t.id)));
-          setTotal((prev) => prev - count);
-          setSelectedIds(new Set());
-          setShowDeleteModal(false);
-          setIsDeleteMode(false);
-          return `${count}개 템플릿이 삭제되었습니다.`;
-        },
-        error: (error) => {
-          console.error('삭제 실패:', error);
-          return error instanceof Error ? error.message : '삭제 중 오류가 발생했습니다.';
-        },
+    toast.promise(Promise.all(Array.from(selectedIds).map((id) => repository.remove(id))), {
+      loading: `${count}개 템플릿 삭제 중...`,
+      success: () => {
+        setTemplates((prev) => prev.filter((t) => !selectedIds.has(t.id)));
+        setTotal((prev) => prev - count);
+        setSelectedIds(new Set());
+        setShowDeleteModal(false);
+        setIsDeleteMode(false);
+
+        // 게스트 모드: 사용량 카운트 감소
+        if (isGuest) {
+          Array.from(selectedIds).forEach(() => decrementTemplateCount());
+        }
+
+        return `${count}개 템플릿이 삭제되었습니다.`;
       },
-    );
+      error: (error) => {
+        console.error('삭제 실패:', error);
+        return error instanceof Error ? error.message : '삭제 중 오류가 발생했습니다.';
+      },
+    });
   };
 
   const toggleDeleteMode = () => {
@@ -264,22 +275,6 @@ export default function TemplatesPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div>로딩 중...</div>
-      </div>
-    );
-  }
-
-  if (auth.status === 'guest') {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-xl mb-4">로그인이 필요합니다.</p>
-          <button
-            onClick={() => (window.location.href = '/intro')}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg"
-          >
-            로그인하러 가기
-          </button>
-        </div>
       </div>
     );
   }
