@@ -12,10 +12,6 @@ export default function MainPage() {
     return <div className="min-h-screen bg-zinc-950 text-zinc-50">로딩중...</div>;
   }
 
-  if (auth.status === 'guest') {
-    return <div className="min-h-screen bg-zinc-950 text-zinc-50">로그인이 필요합니다.</div>;
-  }
-
   const menuItems = [
     {
       title: '이메일 생성',

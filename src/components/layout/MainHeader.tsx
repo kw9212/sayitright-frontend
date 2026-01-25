@@ -125,7 +125,9 @@ export function MainHeader({
             )}
             {showWelcome && (
               <h1 className="text-xl font-semibold">
-                {auth.user?.username ?? auth.user?.email}님 환영합니다
+                {auth.status === 'guest'
+                  ? '🎭 게스트님 환영합니다'
+                  : `${auth.user?.username ?? auth.user?.email}님 환영합니다`}
               </h1>
             )}
             {title && <h1 className="text-xl font-semibold">{title}</h1>}
@@ -149,30 +151,51 @@ export function MainHeader({
                     bg-zinc-800 shadow-lg ring-1 ring-zinc-700 z-20"
                 >
                   <div className="py-1">
-                    <button
-                      onClick={handleProfileEdit}
-                      className="block w-full px-4 py-2 text-left text-sm 
-                        hover:bg-zinc-700 transition-colors"
-                    >
-                      👤 프로필 변경
-                    </button>
-
-                    {isPremium ? (
-                      <button
-                        onClick={handleDowngradeToFree}
-                        className="block w-full px-4 py-2 text-left text-sm 
-                          hover:bg-zinc-700 transition-colors text-gray-300"
-                      >
-                        ⬇️ 일반 회원으로 전환
-                      </button>
+                    {auth.status === 'guest' ? (
+                      <>
+                        <button
+                          onClick={() => router.push('/auth/signup')}
+                          className="block w-full px-4 py-2 text-left text-sm 
+                            hover:bg-zinc-700 transition-colors text-emerald-300"
+                        >
+                          ✨ 회원가입하기
+                        </button>
+                        <button
+                          onClick={() => router.push('/auth/login')}
+                          className="block w-full px-4 py-2 text-left text-sm 
+                            hover:bg-zinc-700 transition-colors text-blue-300"
+                        >
+                          🔐 로그인하기
+                        </button>
+                      </>
                     ) : (
-                      <button
-                        onClick={handleUpgradeToPremium}
-                        className="block w-full px-4 py-2 text-left text-sm 
-                          hover:bg-zinc-700 transition-colors text-purple-300"
-                      >
-                        ✨ 구독 회원으로 전환
-                      </button>
+                      <>
+                        <button
+                          onClick={handleProfileEdit}
+                          className="block w-full px-4 py-2 text-left text-sm 
+                            hover:bg-zinc-700 transition-colors"
+                        >
+                          👤 프로필 변경
+                        </button>
+
+                        {isPremium ? (
+                          <button
+                            onClick={handleDowngradeToFree}
+                            className="block w-full px-4 py-2 text-left text-sm 
+                              hover:bg-zinc-700 transition-colors text-gray-300"
+                          >
+                            ⬇️ 일반 회원으로 전환
+                          </button>
+                        ) : (
+                          <button
+                            onClick={handleUpgradeToPremium}
+                            className="block w-full px-4 py-2 text-left text-sm 
+                              hover:bg-zinc-700 transition-colors text-purple-300"
+                          >
+                            ✨ 구독 회원으로 전환
+                          </button>
+                        )}
+                      </>
                     )}
 
                     <div className="border-t border-zinc-700 my-1" />
@@ -185,22 +208,26 @@ export function MainHeader({
                       ❓ 도움말 / FAQ
                     </button>
 
-                    <div className="border-t border-zinc-700 my-1" />
+                    {auth.status === 'authenticated' && (
+                      <>
+                        <div className="border-t border-zinc-700 my-1" />
 
-                    <button
-                      onClick={handleLogoutThisDevice}
-                      className="block w-full px-4 py-2 text-left text-sm 
-                        hover:bg-zinc-700 transition-colors"
-                    >
-                      🚪 이 기기에서만 로그아웃
-                    </button>
-                    <button
-                      onClick={handleLogoutAllDevices}
-                      className="block w-full px-4 py-2 text-left text-sm 
-                        hover:bg-zinc-700 transition-colors text-red-400"
-                    >
-                      🚨 전체 기기에서 로그아웃
-                    </button>
+                        <button
+                          onClick={handleLogoutThisDevice}
+                          className="block w-full px-4 py-2 text-left text-sm 
+                            hover:bg-zinc-700 transition-colors"
+                        >
+                          🚪 이 기기에서만 로그아웃
+                        </button>
+                        <button
+                          onClick={handleLogoutAllDevices}
+                          className="block w-full px-4 py-2 text-left text-sm 
+                            hover:bg-zinc-700 transition-colors text-red-400"
+                        >
+                          🚨 전체 기기에서 로그아웃
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </>
