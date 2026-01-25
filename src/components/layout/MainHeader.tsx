@@ -1,9 +1,13 @@
 'use client';
 
 import { useAuth } from '@/lib/auth/auth-context';
+import { tokenStore } from '@/lib/auth/token';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ProfileEditModal } from './ProfileEditModal';
+import { UpgradeToPremiumModal } from './UpgradeToPremiumModal';
+import { DowngradeToFreeModal } from './DowngradeToFreeModal';
+import { toast } from 'sonner';
 
 type MainHeaderProps = {
   showWelcome?: boolean;
@@ -20,6 +24,11 @@ export function MainHeader({
   const router = useRouter();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [downgradeModalOpen, setDowngradeModalOpen] = useState(false);
+
+  const isPremium = auth.user?.tier === 'premium';
+
   const handleLogoutThisDevice = async () => {
     await auth.logout();
     router.push('/');
@@ -35,8 +44,66 @@ export function MainHeader({
     setProfileModalOpen(true);
   };
 
-  const handleCreditRecharge = () => {
-    console.log('크레딧 충전');
+  const handleUpgradeToPremium = () => {
+    setDropdownOpen(false);
+    setUpgradeModalOpen(true);
+  };
+
+  const handleConfirmUpgrade = async () => {
+    try {
+      const token = tokenStore.getAccessToken();
+      const response = await fetch('/api/users/me/tier', {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ tier: 'premium' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Tier 업데이트 실패');
+      }
+
+      await auth.refreshUser();
+      toast.success('프리미엄 회원으로 전환되었습니다! 🎉');
+      setUpgradeModalOpen(false);
+    } catch (error) {
+      toast.error('회원 전환 중 오류가 발생했습니다.');
+      console.error('Upgrade error:', error);
+    }
+  };
+
+  const handleDowngradeToFree = () => {
+    setDropdownOpen(false);
+    setDowngradeModalOpen(true);
+  };
+
+  const handleConfirmDowngrade = async () => {
+    try {
+      const token = tokenStore.getAccessToken();
+      const response = await fetch('/api/users/me/tier', {
+        method: 'PUT',
+        headers: {
+          'content-type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ tier: 'free' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Tier 업데이트 실패');
+      }
+
+      await auth.refreshUser();
+      toast.success('일반 회원으로 전환되었습니다.');
+      setDowngradeModalOpen(false);
+    } catch (error) {
+      toast.error('회원 전환 중 오류가 발생했습니다.');
+      console.error('Downgrade error:', error);
+    }
   };
 
   const handleHelp = () => {
@@ -67,7 +134,8 @@ export function MainHeader({
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium hover:bg-zinc-700 transition-colors"
+              className="rounded-lg bg-zinc-800 px-4 py-2 text-sm 
+                font-medium hover:bg-zinc-700 transition-colors"
             >
               메뉴 ▾
             </button>
@@ -76,34 +144,43 @@ export function MainHeader({
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
 
-                <div className="absolute right-0 mt-2 w-64 rounded-lg bg-zinc-800 shadow-lg ring-1 ring-zinc-700 z-20">
+                <div
+                  className="absolute right-0 mt-2 w-64 rounded-lg 
+                    bg-zinc-800 shadow-lg ring-1 ring-zinc-700 z-20"
+                >
                   <div className="py-1">
-                    <div className="px-4 py-3 border-b border-zinc-700">
-                      <div className="text-xs text-zinc-400">크레딧 잔액</div>
-                      <div className="text-lg font-semibold text-blue-400">
-                        {auth.user?.creditBalance?.toLocaleString() ?? 0} 크레딧
-                      </div>
-                    </div>
-
                     <button
                       onClick={handleProfileEdit}
-                      className="block w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 transition-colors"
+                      className="block w-full px-4 py-2 text-left text-sm 
+                        hover:bg-zinc-700 transition-colors"
                     >
                       👤 프로필 변경
                     </button>
 
-                    <button
-                      onClick={handleCreditRecharge}
-                      className="block w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 transition-colors"
-                    >
-                      💳 크레딧 충전
-                    </button>
+                    {isPremium ? (
+                      <button
+                        onClick={handleDowngradeToFree}
+                        className="block w-full px-4 py-2 text-left text-sm 
+                          hover:bg-zinc-700 transition-colors text-gray-300"
+                      >
+                        ⬇️ 일반 회원으로 전환
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleUpgradeToPremium}
+                        className="block w-full px-4 py-2 text-left text-sm 
+                          hover:bg-zinc-700 transition-colors text-purple-300"
+                      >
+                        ✨ 구독 회원으로 전환
+                      </button>
+                    )}
 
                     <div className="border-t border-zinc-700 my-1" />
 
                     <button
                       onClick={handleHelp}
-                      className="block w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 transition-colors"
+                      className="block w-full px-4 py-2 text-left text-sm 
+                        hover:bg-zinc-700 transition-colors"
                     >
                       ❓ 도움말 / FAQ
                     </button>
@@ -112,13 +189,15 @@ export function MainHeader({
 
                     <button
                       onClick={handleLogoutThisDevice}
-                      className="block w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 transition-colors"
+                      className="block w-full px-4 py-2 text-left text-sm 
+                        hover:bg-zinc-700 transition-colors"
                     >
                       🚪 이 기기에서만 로그아웃
                     </button>
                     <button
                       onClick={handleLogoutAllDevices}
-                      className="block w-full px-4 py-2 text-left text-sm hover:bg-zinc-700 transition-colors text-red-400"
+                      className="block w-full px-4 py-2 text-left text-sm 
+                        hover:bg-zinc-700 transition-colors text-red-400"
                     >
                       🚨 전체 기기에서 로그아웃
                     </button>
@@ -134,6 +213,18 @@ export function MainHeader({
         isOpen={profileModalOpen}
         onClose={() => setProfileModalOpen(false)}
         currentUsername={auth.user?.username}
+      />
+
+      <UpgradeToPremiumModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        onConfirm={handleConfirmUpgrade}
+      />
+
+      <DowngradeToFreeModal
+        isOpen={downgradeModalOpen}
+        onClose={() => setDowngradeModalOpen(false)}
+        onConfirm={handleConfirmDowngrade}
       />
     </header>
   );
