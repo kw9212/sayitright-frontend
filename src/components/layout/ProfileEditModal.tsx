@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -101,6 +102,9 @@ export function ProfileEditModal({ isOpen, onClose, currentUsername }: ProfileEd
       <DialogContent className="max-w-md bg-zinc-900 text-white border-zinc-800">
         <DialogHeader>
           <DialogTitle className="text-white">프로필 변경</DialogTitle>
+          <DialogDescription className="text-gray-300">
+            닉네임과 비밀번호를 변경할 수 있습니다.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
