@@ -15,6 +15,8 @@ import { useAuth } from '@/lib/auth/auth-context';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { tokenStore } from '@/lib/auth/token';
 import { notesRepository, NoteListItem, Note } from '@/lib/repositories/notes.repository';
+import { guestNotesRepository } from '@/lib/repositories/guest-notes.repository';
+import { decrementNoteCount } from '@/lib/storage/guest-limits';
 import { NoteItem } from './components/NoteItem';
 import { NoteEditModal } from './components/NoteEditModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
@@ -22,6 +24,7 @@ import { toast } from 'sonner';
 
 export default function NotesPage() {
   const auth = useAuth();
+  const isGuest = auth.status === 'guest';
 
   const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -59,17 +62,20 @@ export default function NotesPage() {
 
     if (auth.status === 'authenticated') {
       void refreshTokenOnMount();
+    } else if (auth.status === 'guest') {
+      setTokenRefreshed(true);
     }
   }, [auth.status]);
 
   const fetchNotes = useCallback(async () => {
-    if (auth.status !== 'authenticated' || !tokenRefreshed) {
+    if ((auth.status !== 'authenticated' && auth.status !== 'guest') || !tokenRefreshed) {
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await notesRepository.list({
+      const repository = isGuest ? guestNotesRepository : notesRepository;
+      const response = await repository.list({
         q: searchTerm || undefined,
         sort: sortOption as 'latest' | 'oldest' | 'term_asc' | 'term_desc',
         page: currentPage,
@@ -85,7 +91,7 @@ export default function NotesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [auth.status, tokenRefreshed, searchTerm, sortOption, currentPage]);
+  }, [auth.status, tokenRefreshed, searchTerm, sortOption, currentPage, isGuest]);
 
   useEffect(() => {
     fetchNotes();
@@ -152,7 +158,14 @@ export default function NotesPage() {
 
   const handleConfirmDelete = async () => {
     try {
-      await Promise.all(Array.from(selectedIds).map((id) => notesRepository.remove(id)));
+      const repository = isGuest ? guestNotesRepository : notesRepository;
+      await Promise.all(Array.from(selectedIds).map((id) => repository.remove(id)));
+
+      // 게스트 모드: 사용량 카운트 감소
+      if (isGuest) {
+        Array.from(selectedIds).forEach(() => decrementNoteCount());
+      }
+
       toast.success(`${selectedIds.size}개의 용어가 삭제되었습니다.`);
       setShowDeleteModal(false);
       setSelectedIds(new Set());
@@ -176,7 +189,7 @@ export default function NotesPage() {
     }
   };
 
-  if (auth.status !== 'authenticated') {
+  if (auth.status !== 'authenticated' && auth.status !== 'guest') {
     return null;
   }
 
