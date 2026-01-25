@@ -10,8 +10,13 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/auth/auth-context';
 import { archivesRepository } from '@/lib/repositories/archives.repository';
+import { guestArchivesRepository } from '@/lib/repositories/guest-archives.repository';
 import { templatesRepository } from '@/lib/repositories/templates.repository';
+import { guestTemplatesRepository } from '@/lib/repositories/guest-templates.repository';
+import { canCreateTemplate, incrementTemplateCount } from '@/lib/storage/guest-limits';
+import { GuestLimitModal } from '@/components/layout/GuestLimitModal';
 import { toast } from 'sonner';
 
 type Props = {
@@ -21,9 +26,13 @@ type Props = {
 };
 
 export default function ConvertToTemplateModal({ archiveId, onClose, onSuccess }: Props) {
+  const auth = useAuth();
+  const isGuest = auth.status === 'guest';
+
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false);
   const [showRationale, setShowRationale] = useState(false);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [archive, setArchive] = useState<{
     id: string;
     title?: string;
@@ -46,7 +55,8 @@ export default function ConvertToTemplateModal({ archiveId, onClose, onSuccess }
     const fetchArchive = async () => {
       setLoading(true);
       try {
-        const response = await archivesRepository.get(archiveId);
+        const repository = isGuest ? guestArchivesRepository : archivesRepository;
+        const response = await repository.get(archiveId);
         if (response.ok && response.data) {
           setArchive(response.data);
         }
@@ -62,14 +72,21 @@ export default function ConvertToTemplateModal({ archiveId, onClose, onSuccess }
     };
 
     void fetchArchive();
-  }, [archiveId, onClose]);
+  }, [archiveId, onClose, isGuest]);
 
   const handleConvert = async () => {
     if (!archive) return;
 
+    // 게스트 모드: 템플릿 저장 한도 체크
+    if (isGuest && !canCreateTemplate()) {
+      setShowGuestLimitModal(true);
+      return;
+    }
+
     setConverting(true);
     try {
-      const response = await templatesRepository.create({
+      const repository = isGuest ? guestTemplatesRepository : templatesRepository;
+      const response = await repository.create({
         sourceArchiveId: archive.id,
         title: archive.title,
         content: archive.content,
@@ -80,6 +97,11 @@ export default function ConvertToTemplateModal({ archiveId, onClose, onSuccess }
       });
 
       if (response.ok) {
+        // 게스트 모드: 템플릿 카운트 증가
+        if (isGuest) {
+          incrementTemplateCount();
+        }
+
         toast.success('템플릿으로 저장되었습니다!');
         onSuccess?.();
         onClose();
@@ -323,6 +345,12 @@ export default function ConvertToTemplateModal({ archiveId, onClose, onSuccess }
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <GuestLimitModal
+        isOpen={showGuestLimitModal}
+        onClose={() => setShowGuestLimitModal(false)}
+        limitType="template"
+      />
     </Dialog>
   );
 }
