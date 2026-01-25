@@ -2,11 +2,13 @@
 
 import { useAuth } from '@/lib/auth/auth-context';
 import { MainHeader } from '@/components/layout/MainHeader';
+import { GuestLimitModal } from '@/components/layout/GuestLimitModal';
 import { useState, useEffect } from 'react';
 import { generateEmail } from '@/lib/api/email-generation';
 import { renderMarkdown } from '@/lib/utils/markdown';
 import { tokenStore } from '@/lib/auth/token';
 import { templatesRepository } from '@/lib/repositories/templates.repository';
+import { canGenerateEmail, incrementEmailCount } from '@/lib/storage/guest-limits';
 import { toast } from 'sonner';
 import SaveTemplateModal from './SaveTemplateModal';
 
@@ -45,6 +47,9 @@ export default function EmailComposePage() {
   >([]);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+
+  const isGuest = auth.status === 'guest';
 
   useEffect(() => {
     const refreshTokenOnMount = async () => {
@@ -68,7 +73,6 @@ export default function EmailComposePage() {
 
   const getInputLimit = (): number => {
     if (!isAdvancedMode) {
-      const isGuest = auth.status === 'guest';
       const isPremium = auth.user?.tier === 'premium';
 
       if (isGuest) {
@@ -104,8 +108,6 @@ export default function EmailComposePage() {
   if (auth.status === 'loading') {
     return <div className="min-h-screen bg-zinc-950 text-zinc-50">로딩중...</div>;
   }
-
-  const isGuest = auth.status === 'guest';
 
   const checkRequiredFilters = (): boolean => {
     const hasRelationship =
@@ -199,6 +201,12 @@ export default function EmailComposePage() {
       return;
     }
 
+    // 게스트 모드: 일일 이메일 생성 한도 체크
+    if (isGuest && !canGenerateEmail()) {
+      setShowGuestLimitModal(true);
+      return;
+    }
+
     if (!checkRequiredFilters()) {
       return;
     }
@@ -258,6 +266,11 @@ export default function EmailComposePage() {
         setGeneratedRationale(response.data.rationale);
       } else {
         setGeneratedRationale('');
+      }
+
+      // 게스트 모드: 이메일 생성 카운트 증가
+      if (isGuest) {
+        incrementEmailCount();
       }
 
       if (response.data.metadata.creditCharged > 0) {
@@ -770,6 +783,12 @@ export default function EmailComposePage() {
         onClose={() => setShowSaveTemplateModal(false)}
         onConfirm={handleConfirmSaveTemplate}
         isLoading={isSavingTemplate}
+      />
+
+      <GuestLimitModal
+        isOpen={showGuestLimitModal}
+        onClose={() => setShowGuestLimitModal(false)}
+        limitType="email"
       />
     </main>
   );
