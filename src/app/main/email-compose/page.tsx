@@ -244,14 +244,14 @@ export default function EmailComposePage() {
       }
 
       const finalFilters = {
-        relationship,
-        purpose,
-        tone,
-        length,
+        relationship: relationship && relationship.trim() !== '' ? relationship : undefined,
+        purpose: purpose && purpose.trim() !== '' ? purpose : undefined,
+        tone: tone && tone.trim() !== '' ? tone : undefined,
+        length: length && length.trim() !== '' ? length : undefined,
       };
 
       const response = await generateEmail({
-        draft: userInput,
+        draft: userInput.trim(),
         language: filters.language as 'ko' | 'en',
         relationship: finalFilters.relationship,
         purpose: finalFilters.purpose,
