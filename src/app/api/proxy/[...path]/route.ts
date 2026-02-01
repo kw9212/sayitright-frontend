@@ -6,24 +6,44 @@ const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:3001';
  * 범용 백엔드 API 프록시
  * 모든 /api/proxy/* 요청을 백엔드로 전달
  */
-export async function GET(request: NextRequest, { params }: { params: { path: string[] } }) {
-  return proxyRequest(request, params.path, 'GET');
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
+  const { path } = await params;
+  return proxyRequest(request, path, 'GET');
 }
 
-export async function POST(request: NextRequest, { params }: { params: { path: string[] } }) {
-  return proxyRequest(request, params.path, 'POST');
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
+  const { path } = await params;
+  return proxyRequest(request, path, 'POST');
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { path: string[] } }) {
-  return proxyRequest(request, params.path, 'PUT');
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
+  const { path } = await params;
+  return proxyRequest(request, path, 'PUT');
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: { path: string[] } }) {
-  return proxyRequest(request, params.path, 'PATCH');
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
+  const { path } = await params;
+  return proxyRequest(request, path, 'PATCH');
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { path: string[] } }) {
-  return proxyRequest(request, params.path, 'DELETE');
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ path: string[] }> },
+) {
+  const { path } = await params;
+  return proxyRequest(request, path, 'DELETE');
 }
 
 async function proxyRequest(request: NextRequest, pathSegments: string[], method: string) {
@@ -32,7 +52,10 @@ async function proxyRequest(request: NextRequest, pathSegments: string[], method
     const searchParams = request.nextUrl.searchParams.toString();
     const backendUrl = `${API_BASE_URL}/${path}${searchParams ? `?${searchParams}` : ''}`;
 
-    console.log(`[API Proxy] ${method} ${backendUrl}`);
+    // 개발 환경에서만 상세 로깅
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[API Proxy] ${method} ${backendUrl}`);
+    }
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -94,7 +117,8 @@ async function proxyRequest(request: NextRequest, pathSegments: string[], method
       headers: responseHeaders,
     });
   } catch (error) {
-    console.error('[API Proxy] 프록시 에러:', {
+    // 에러는 항상 로깅 (프로덕션에서도 중요)
+    console.error('[API Proxy] 에러:', {
       error: error instanceof Error ? error.message : error,
       method,
       path: pathSegments,
