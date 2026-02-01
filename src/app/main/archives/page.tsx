@@ -284,11 +284,11 @@ export default function ArchivesPage() {
     <main className="min-h-screen bg-zinc-900 text-white">
       <MainHeader title="아카이브" showBackButton />
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-6">
         <div className="mb-4 bg-blue-950/20 border border-blue-700/30 rounded-lg p-3">
           <div className="flex items-start gap-2">
             <svg
-              className="w-5 h-5 text-blue-400 shrink-0 mt-0.5"
+              className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400 shrink-0 mt-0.5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -301,7 +301,7 @@ export default function ArchivesPage() {
               />
             </svg>
             <div className="flex-1">
-              <p className="text-sm text-blue-300">
+              <p className="text-xs sm:text-sm text-blue-300">
                 <strong>아카이브 보관 정책:</strong> 이메일 생성 시 자동으로 저장되며, 생성일로부터{' '}
                 <strong>최대 7일</strong>까지 보관됩니다. 중요한 이메일은 템플릿으로 전환하여 영구
                 보관하세요.
@@ -311,25 +311,30 @@ export default function ArchivesPage() {
         </div>
 
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
               <p className="text-sm text-zinc-400">총 {total}개의 아카이브</p>
             </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               {isDeleteMode && (
                 <>
                   <button
                     onClick={toggleSelectAll}
-                    className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors text-sm"
+                    className="px-3 sm:px-4 py-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg transition-colors text-xs sm:text-sm"
                   >
-                    {selectedIds.size === archives.length ? '전체 해제' : '전체 선택 (현재 목록)'}
+                    <span className="hidden sm:inline">
+                      {selectedIds.size === archives.length ? '전체 해제' : '전체 선택 (현재 목록)'}
+                    </span>
+                    <span className="sm:hidden">
+                      {selectedIds.size === archives.length ? '전체 해제' : '전체 선택'}
+                    </span>
                   </button>
                   <button
                     onClick={handleDeleteClick}
                     disabled={selectedIds.size === 0}
-                    className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 
-                      disabled:cursor-not-allowed rounded-lg transition-colors"
+                    className="px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-700 
+                      disabled:cursor-not-allowed rounded-lg transition-colors text-xs sm:text-sm"
                   >
                     삭제 ({selectedIds.size})
                   </button>
@@ -338,7 +343,7 @@ export default function ArchivesPage() {
 
               <button
                 onClick={toggleDeleteMode}
-                className={`px-4 py-2 rounded-lg transition-colors ${
+                className={`px-3 sm:px-4 py-2 rounded-lg transition-colors text-xs sm:text-sm ${
                   isDeleteMode ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-red-600 hover:bg-red-700'
                 }`}
               >
@@ -357,7 +362,7 @@ export default function ArchivesPage() {
               <p className="text-sm">이메일을 생성하면 자동으로 7일간 저장됩니다.</p>
             </div>
           ) : (
-            <div className="space-y-1 bg-zinc-900 rounded-lg border border-zinc-800 p-2">
+            <div className="space-y-1 bg-zinc-900 rounded-lg border border-zinc-800 p-1 sm:p-2">
               {archives.map((archive) => (
                 <ArchiveRow
                   key={archive.id}

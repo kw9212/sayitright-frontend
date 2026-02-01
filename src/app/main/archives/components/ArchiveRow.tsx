@@ -41,42 +41,52 @@ export default function ArchiveRow({
 
   return (
     <div
-      className={`flex items-center gap-4 px-4 py-3 rounded-lg transition-all cursor-pointer ${
+      className={`flex flex-col md:flex-row md:items-center gap-2 md:gap-4 px-3 md:px-4 py-3 rounded-lg transition-all cursor-pointer ${
         isDeleteMode ? 'hover:bg-red-950/20' : 'hover:bg-zinc-800/50'
       } ${isSelected ? 'bg-red-950/30 border border-red-700/50' : 'border border-transparent'}`}
       onClick={handleClick}
     >
-      {isDeleteMode && (
-        <div className="shrink-0">
-          <div
-            className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-              isSelected ? 'bg-red-600 border-red-600' : 'border-zinc-600 bg-zinc-900'
-            }`}
-          >
-            {isSelected && (
-              <svg
-                className="w-3 h-3 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={3}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            )}
+      <div className="flex items-center gap-2 md:gap-4">
+        {isDeleteMode && (
+          <div className="shrink-0">
+            <div
+              className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                isSelected ? 'bg-red-600 border-red-600' : 'border-zinc-600 bg-zinc-900'
+              }`}
+            >
+              {isSelected && (
+                <svg
+                  className="w-3 h-3 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={3}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="shrink-0 w-24 text-sm text-zinc-400" title={formattedFullDate}>
-        {formattedDate}
+        <div className="shrink-0 text-xs md:text-sm text-zinc-400" title={formattedFullDate}>
+          {formattedDate}
+        </div>
+
+        {!isDeleteMode && (
+          <div className="md:hidden shrink-0 text-zinc-500">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        )}
       </div>
 
-      <div className="shrink-0 flex flex-wrap gap-2 w-80">
+      <div className="flex flex-wrap gap-1.5 md:gap-2 md:w-80 md:shrink-0">
         <span
           className="px-2 py-0.5 text-xs rounded-full bg-blue-900/30 
             text-blue-300 border border-blue-700/30"
@@ -108,7 +118,7 @@ export default function ArchiveRow({
       </div>
 
       {!isDeleteMode && (
-        <div className="shrink-0 text-zinc-500">
+        <div className="hidden md:block shrink-0 text-zinc-500">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
