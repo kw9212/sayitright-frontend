@@ -8,7 +8,16 @@ import { generateEmail } from '@/lib/api/email-generation';
 import { renderMarkdown } from '@/lib/utils/markdown';
 import { tokenStore } from '@/lib/auth/token';
 import { templatesRepository } from '@/lib/repositories/templates.repository';
-import { canGenerateEmail, incrementEmailCount } from '@/lib/storage/guest-limits';
+import { guestTemplatesRepository } from '@/lib/repositories/guest-templates.repository';
+import { guestArchivesRepository } from '@/lib/repositories/guest-archives.repository';
+import {
+  canGenerateEmail,
+  incrementEmailCount,
+  canCreateTemplate,
+  incrementTemplateCount,
+  canCreateArchive,
+  incrementArchiveCount,
+} from '@/lib/storage/guest-limits';
 import { toast } from 'sonner';
 import SaveTemplateModal from './SaveTemplateModal';
 
@@ -48,6 +57,9 @@ export default function EmailComposePage() {
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
+  const [guestLimitType, setGuestLimitType] = useState<'template' | 'archive' | 'note' | 'email'>(
+    'email',
+  );
 
   const isGuest = auth.status === 'guest';
 
@@ -203,6 +215,7 @@ export default function EmailComposePage() {
 
     // 게스트 모드: 일일 이메일 생성 한도 체크
     if (isGuest && !canGenerateEmail()) {
+      setGuestLimitType('email');
       setShowGuestLimitModal(true);
       return;
     }
@@ -268,9 +281,27 @@ export default function EmailComposePage() {
         setGeneratedRationale('');
       }
 
-      // 게스트 모드: 이메일 생성 카운트 증가
+      // 게스트 모드: 이메일 생성 카운트 증가 + 아카이브 자동 저장
       if (isGuest) {
         incrementEmailCount();
+
+        // 아카이브 한도 체크 후 저장
+        if (canCreateArchive()) {
+          try {
+            await guestArchivesRepository.create({
+              title: '', // 아카이브는 제목 없음
+              content: response.data.email,
+              tone: finalFilters.tone || 'neutral',
+              purpose: finalFilters.purpose,
+              relationship: finalFilters.relationship,
+              rationale: response.data.rationale,
+            });
+            incrementArchiveCount();
+          } catch (archiveError) {
+            console.error('아카이브 자동 저장 실패:', archiveError);
+            // 아카이브 저장 실패는 조용히 처리 (이메일 생성은 성공했으므로)
+          }
+        }
       }
 
       if (response.data.metadata.creditCharged > 0) {
@@ -314,9 +345,13 @@ export default function EmailComposePage() {
       return;
     }
 
-    if (auth.status !== 'authenticated') {
-      toast.error('템플릿 저장은 로그인이 필요합니다.');
-      return;
+    // 게스트 모드 한도 체크
+    if (isGuest) {
+      if (!canCreateTemplate()) {
+        setGuestLimitType('template');
+        setShowGuestLimitModal(true);
+        return;
+      }
     }
 
     setShowSaveTemplateModal(true);
@@ -330,19 +365,30 @@ export default function EmailComposePage() {
       const finalPurpose = filters.purpose || customInputs.purpose;
       const finalTone = filters.tone || customInputs.tone || 'polite';
 
-      const response = await templatesRepository.create({
+      const templateData = {
         title: title || undefined,
         content: generatedEmail,
         tone: finalTone,
         relationship: finalRelationship || undefined,
         purpose: finalPurpose || undefined,
         rationale: generatedRationale || undefined,
-      });
+      };
 
-      if (response.ok) {
+      // 게스트 모드: IndexedDB에 저장
+      if (isGuest) {
+        await guestTemplatesRepository.create(templateData);
+        incrementTemplateCount();
         toast.success('✅ 템플릿이 저장되었습니다!');
-        setShowSaveTemplateModal(false);
       }
+      // 로그인 사용자: 백엔드 API에 저장
+      else {
+        const response = await templatesRepository.create(templateData);
+        if (response.ok) {
+          toast.success('✅ 템플릿이 저장되었습니다!');
+        }
+      }
+
+      setShowSaveTemplateModal(false);
     } catch (error) {
       console.error('템플릿 저장 실패:', error);
       const errorMessage = error instanceof Error ? error.message : '템플릿 저장에 실패했습니다.';
@@ -788,7 +834,7 @@ export default function EmailComposePage() {
       <GuestLimitModal
         isOpen={showGuestLimitModal}
         onClose={() => setShowGuestLimitModal(false)}
-        limitType="email"
+        limitType={guestLimitType}
       />
     </main>
   );
