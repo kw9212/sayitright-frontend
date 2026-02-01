@@ -51,7 +51,7 @@ export interface IArchivesRepository {
 }
 
 class ArchivesAPIRepository implements IArchivesRepository {
-  private baseUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}/v1/archives`;
+  private baseUrl = '/api/proxy/v1/archives';
 
   private async refreshAccessToken(): Promise<string | null> {
     try {
