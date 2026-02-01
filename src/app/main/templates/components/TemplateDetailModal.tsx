@@ -9,6 +9,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { templatesRepository, type TemplateDetail } from '@/lib/repositories/templates.repository';
+import { guestTemplatesRepository } from '@/lib/repositories/guest-templates.repository';
+import { useAuth } from '@/lib/auth/auth-context';
 import { toast } from 'sonner';
 
 type Props = {
@@ -18,6 +20,8 @@ type Props = {
 };
 
 export default function TemplateDetailModal({ templateId, onClose, onUpdate }: Props) {
+  const auth = useAuth();
+  const isGuest = auth.status === 'guest';
   const [loading, setLoading] = useState(false);
   const [template, setTemplate] = useState<TemplateDetail | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -41,7 +45,8 @@ export default function TemplateDetailModal({ templateId, onClose, onUpdate }: P
     const fetchTemplateDetail = async () => {
       setLoading(true);
       try {
-        const response = await templatesRepository.get(templateId);
+        const repository = isGuest ? guestTemplatesRepository : templatesRepository;
+        const response = await repository.get(templateId);
         if (response.ok && response.data) {
           const data = response.data;
           setTemplate(data);
@@ -62,7 +67,7 @@ export default function TemplateDetailModal({ templateId, onClose, onUpdate }: P
     };
 
     void fetchTemplateDetail();
-  }, [templateId, onClose]);
+  }, [templateId, onClose, isGuest]);
 
   const handleCopy = () => {
     if (template?.content) {
@@ -102,7 +107,8 @@ export default function TemplateDetailModal({ templateId, onClose, onUpdate }: P
 
     setIsSaving(true);
     try {
-      const response = await templatesRepository.update(template.id, {
+      const repository = isGuest ? guestTemplatesRepository : templatesRepository;
+      const response = await repository.update(template.id, {
         title: editedTitle.trim() || undefined,
         content: editedContent.trim(),
         tone: editedTone,

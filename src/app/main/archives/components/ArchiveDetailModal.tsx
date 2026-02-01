@@ -9,6 +9,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { archivesRepository, type ArchiveDetail } from '@/lib/repositories/archives.repository';
+import { guestArchivesRepository } from '@/lib/repositories/guest-archives.repository';
+import { useAuth } from '@/lib/auth/auth-context';
 import { getToneLabel, getRelationshipLabel, getPurposeLabel } from '@/lib/constants/filter-labels';
 import { toast } from 'sonner';
 
@@ -25,6 +27,9 @@ type Props = {
  * - 복사 버튼
  */
 export default function ArchiveDetailModal({ archiveId, onClose }: Props) {
+  const auth = useAuth();
+  const isGuest = auth.status === 'guest';
+
   const [loading, setLoading] = useState(false);
   const [archive, setArchive] = useState<ArchiveDetail | null>(null);
 
@@ -37,7 +42,8 @@ export default function ArchiveDetailModal({ archiveId, onClose }: Props) {
     const fetchArchiveDetail = async () => {
       setLoading(true);
       try {
-        const response = await archivesRepository.get(archiveId);
+        const repository = isGuest ? guestArchivesRepository : archivesRepository;
+        const response = await repository.get(archiveId);
         if (response.ok && response.data) {
           setArchive(response.data);
         }
@@ -53,7 +59,7 @@ export default function ArchiveDetailModal({ archiveId, onClose }: Props) {
     };
 
     void fetchArchiveDetail();
-  }, [archiveId, onClose]);
+  }, [archiveId, onClose, isGuest]);
 
   const handleCopy = () => {
     if (archive?.content) {
