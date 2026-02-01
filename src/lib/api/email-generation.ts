@@ -56,12 +56,13 @@ export async function generateEmail(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
+  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
 
-  const response = await fetch('http://localhost:3001/v1/ai/generate-email', {
+  const response = await fetch(`${API_BASE}/v1/ai/generate-email`, {
     method: 'POST',
     headers,
     credentials: 'include',

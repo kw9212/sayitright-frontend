@@ -87,7 +87,7 @@ export interface ITemplatesRepository {
 }
 
 class TemplatesAPIRepository implements ITemplatesRepository {
-  private baseUrl = 'http://localhost:3001/v1/templates';
+  private baseUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001'}/v1/templates`;
 
   private async refreshAccessToken(): Promise<string | null> {
     try {
