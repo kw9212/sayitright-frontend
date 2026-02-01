@@ -115,6 +115,7 @@ export class GuestArchivesRepository {
         relationship: archive.relationship,
         rationale: archive.rationale,
         createdAt: archive.createdAt,
+        updatedAt: archive.createdAt,
       },
     };
   }
