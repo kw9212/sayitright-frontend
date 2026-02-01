@@ -56,13 +56,13 @@ export async function generateEmail(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
   if (accessToken) {
     headers.Authorization = `Bearer ${accessToken}`;
   }
 
-  const response = await fetch(`${API_BASE}/v1/ai/generate-email`, {
+  // Next.js API route를 통해 백엔드 호출 (HTTPS 문제 해결)
+  const response = await fetch('/api/ai/generate-email', {
     method: 'POST',
     headers,
     credentials: 'include',
