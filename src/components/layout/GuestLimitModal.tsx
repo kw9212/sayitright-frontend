@@ -43,7 +43,7 @@ export function GuestLimitModal({ isOpen, onClose, limitType }: GuestLimitModalP
 
   const handleSignup = () => {
     onClose();
-    router.push('/auth/signup');
+    router.push('/auth');
   };
 
   return (
