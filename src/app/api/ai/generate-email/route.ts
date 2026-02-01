@@ -8,6 +8,13 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('Authorization');
     const cookies = request.headers.get('Cookie');
 
+    console.log('[API Proxy] 요청 시작:', {
+      apiBaseUrl: API_BASE_URL,
+      hasAuth: !!authHeader,
+      hasCookies: !!cookies,
+      bodyKeys: Object.keys(body),
+    });
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
@@ -20,22 +27,35 @@ export async function POST(request: NextRequest) {
       headers.Cookie = cookies;
     }
 
+    const backendUrl = `${API_BASE_URL}/v1/ai/generate-email`;
+    console.log('[API Proxy] 백엔드 호출:', backendUrl);
+
     // 백엔드 API 호출 (서버에서 HTTP 호출은 안전)
-    const response = await fetch(`${API_BASE_URL}/v1/ai/generate-email`, {
+    const response = await fetch(backendUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
     });
 
+    console.log('[API Proxy] 백엔드 응답:', {
+      status: response.status,
+      ok: response.ok,
+    });
+
     const data = await response.json();
 
     if (!response.ok) {
+      console.error('[API Proxy] 백엔드 에러:', data);
       return NextResponse.json(data, { status: response.status });
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error('이메일 생성 프록시 에러:', error);
+    console.error('[API Proxy] 프록시 에러:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      apiBaseUrl: API_BASE_URL,
+    });
     return NextResponse.json(
       {
         ok: false,
