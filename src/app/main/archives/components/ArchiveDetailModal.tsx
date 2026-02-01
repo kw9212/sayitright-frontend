@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { archivesRepository, type ArchiveListItem } from '@/lib/repositories/archives.repository';
+import { archivesRepository, type ArchiveDetail } from '@/lib/repositories/archives.repository';
 import { getToneLabel, getRelationshipLabel, getPurposeLabel } from '@/lib/constants/filter-labels';
 import { toast } from 'sonner';
 
@@ -26,15 +26,7 @@ type Props = {
  */
 export default function ArchiveDetailModal({ archiveId, onClose }: Props) {
   const [loading, setLoading] = useState(false);
-  const [archive, setArchive] = useState<{
-    id: string;
-    title?: string;
-    content: string;
-    tone: string;
-    purpose?: string;
-    relationship?: string;
-    createdAt: Date;
-  } | null>(null);
+  const [archive, setArchive] = useState<ArchiveDetail | null>(null);
 
   useEffect(() => {
     if (!archiveId) {

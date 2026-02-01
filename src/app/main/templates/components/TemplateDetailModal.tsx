@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { templatesRepository } from '@/lib/repositories/templates.repository';
+import { templatesRepository, type TemplateDetail } from '@/lib/repositories/templates.repository';
 import { toast } from 'sonner';
 
 type Props = {
@@ -17,20 +17,9 @@ type Props = {
   onUpdate?: () => void;
 };
 
-type TemplateData = {
-  id: string;
-  title?: string;
-  content: string;
-  tone: string;
-  purpose?: string;
-  relationship?: string;
-  rationale?: string;
-  createdAt: Date;
-};
-
 export default function TemplateDetailModal({ templateId, onClose, onUpdate }: Props) {
   const [loading, setLoading] = useState(false);
-  const [template, setTemplate] = useState<TemplateData | null>(null);
+  const [template, setTemplate] = useState<TemplateDetail | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
