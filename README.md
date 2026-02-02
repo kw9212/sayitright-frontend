@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## 📝 프로젝트 동기
 
-## Getting Started
+업무나 일상에서 이메일이나 메시지를 작성해야 하는 상황은 많지만,
+관계·목적·톤을 동시에 고려해 문장을 정리하는 일은 생각보다 많은 시간과 부담을 요구합니다.
 
-First, run the development server:
+특히 사회 초년생이거나 새로운 조직 환경에 적응 중인 사용자들은
+“무엇을 어떻게 써야 할지” 감이 잡히지 않아 문장을 반복적으로 고치거나,
+아예 작성을 미루는 경우도 적지 않습니다.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+이 프로젝트는 사용자가 이미 작성한 초안을 중심으로,
+상황에 필요한 조건만 선택하면 보다 적절한 표현으로 정리해주는 흐름을 제공하는 것을 목표로 합니다.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+사용자가 입력한 초안을 기반으로 관계, 목적, 톤과 같은 조건을 명시적으로 구조화하고,
+조건에 따라 적용 가능한 기능을 단계적으로 제한·확장하는 방식으로 설계했습니다.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+또한 로그인 여부와 과금 방식에 따라 사용 가능한 기능 범위를 명확히 나누어,
+비로그인 사용자도 핵심 기능을 바로 체험할 수 있고,
+로그인 및 유료 사용자는 저장·재사용·고급 피드백 기능까지 자연스럽게 확장할 수 있도록 구성했습니다.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+그 결과 사용자는 이메일 초안을 빠르게 다듬을 수 있고,
+생성된 내용을 아카이브로 관리하거나 템플릿으로 재사용하며,
+자신의 표현 패턴을 정리하고 반복 학습할 수 있는 환경을 제공받게 됩니다.
 
-## Learn More
+## 📚 기술 스택
 
-To learn more about Next.js, take a look at the following resources:
+### Frontend
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- Next.js 16 / React 19
+- TypeScript
+- Tailwind CSS 4
+- shadcn/ui (Radix UI)
+- TanStack Query
+- React Hook Form + Zod
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Backend
 
-## Deploy on Vercel
+- NestJS
+- TypeScript
+- Prisma ORM
+- Redis (ioredis)
+- JWT 인증
+- OpenAI API
+- Nodemailer
+- Swagger
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+공통
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- ESLint, Prettier
+- Husky (Git Hooks)
+
+## ⭐ 핵심 기능 요약
+
+### ✍️ 이메일 작성
+
+누구에게 쓰는 이메일인지,
+어떤 말투가 적절한지,
+어느 정도 길이가 알맞은지 고민할 필요가 없습니다.
+
+초안에 의도만 담아 입력하고,
+수신자·목적·톤과 같은 조건을 선택하면
+상황에 맞게 정제된 이메일을 생성해줍니다.
+
+고급 기능을 사용할 경우,
+작성된 이메일에 대해 표현 선택의 이유와 개선 포인트를 설명하는 피드백도 함께 제공해
+의도를 더 명확하게 파악할 수 있습니다.
+
+---
+
+### 🔖 템플릿 전환 기능
+
+자주 사용하는 표현이나 구조가 있다면
+생성된 이메일을 템플릿으로 저장해 재사용할 수 있습니다.
+
+템플릿은 수정이 가능하며,
+검색 기능을 통해 필요한 템플릿을 빠르게 찾을 수 있습니다.
+
+---
+
+### 📋 아카이브 저장 기능
+
+이전에 작성한 이메일이 기억나지 않아도 괜찮습니다.
+생성한 이메일은 모두 아카이브에 저장되어
+날짜, 수신자, 내용, 키워드 검색을 통해 쉽게 찾아볼 수 있습니다.
+
+여러 이메일을 관리해야 하는 상황에서도
+필요한 내용을 빠르게 다시 확인할 수 있습니다.
+
+---
+
+### 📔 직장 생활 용어 노트
+
+새로운 팀이나 조직에서 사용하는 사무 용어, 팀 내 표현이 낯설게 느껴진 적이 있다면
+용어 노트 기능을 통해 나만의 정리 노트를 만들 수 있습니다.
+
+각 용어마다 설명과 예시를 함께 기록할 수 있고,
+중요한 항목은 표시해 한눈에 확인할 수 있습니다.
+
+반복해서 정리하고 활용하며,
+새로운 환경에 보다 빠르게 적응할 수 있도록 돕습니다.
