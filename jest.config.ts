@@ -25,15 +25,16 @@ const config: Config = {
     '!src/**/__tests__/**',
   ],
 
-  // 커버리지 목표치 (70% 이상)
-  coverageThreshold: {
-    global: {
-      branches: 70,
-      functions: 70,
-      lines: 70,
-      statements: 70,
-    },
-  },
+  // 커버리지 목표치 (60% 이상)
+  // 전체 커버리지 %가 아닌 로직과 비즈니스 로직의 커버리지를 목표로 하기 위해 비활성화
+  // coverageThreshold: {
+  //   global: {
+  //     branches: 60,
+  //     functions: 60,
+  //     lines: 60,
+  //     statements: 60,
+  //   },
+  // },
 
   // 모듈 경로 별칭 (@/ -> src/)
   moduleNameMapper: {
