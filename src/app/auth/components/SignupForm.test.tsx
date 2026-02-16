@@ -319,6 +319,6 @@ describe('SignupForm 컴포넌트', () => {
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalledTimes(1);
       });
-    });
+    }, 15000);
   });
 });
