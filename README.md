@@ -5,7 +5,7 @@
 SayItRight는 이메일 초안을 상황에 맞게 정제하고, 아카이브·템플릿·표현 노트를 통해 사용자의 커뮤니케이션 역량을 축적할 수 있도록 설계된 서비스입니다.
 
 <p align="center">
-  🌐 <a href="sayitright-web.vercel.app">Live Demo</a> &nbsp; | &nbsp;
+  🌐 <a href="https://sayitright-web.vercel.app">Live Demo</a> &nbsp; | &nbsp;
   🖥️ <a href="https://github.com/kw9212/sayitright-web">Frontend</a> &nbsp; | &nbsp;
   ⚙️ <a href="https://github.com/kw9212/sayitright-api">Backend</a>
 </p>
@@ -269,9 +269,9 @@ export class EmailPromptBuilder {
     if (request.includeRationale) {
       parts.push(
         `\\n\\n응답 형식:\\n` +
-        `1. 먼저 완성된 이메일을 작성하고\\n` +
-        `2. "---RATIONALE---" 구분자 다음에\\n` +
-        `3. 왜 이렇게 작성했는지 개선 근거를 상세히 설명해주세요.`
+          `1. 먼저 완성된 이메일을 작성하고\\n` +
+          `2. "---RATIONALE---" 구분자 다음에\\n` +
+          `3. 왜 이렇게 작성했는지 개선 근거를 상세히 설명해주세요.`,
       );
     }
 
@@ -301,15 +301,16 @@ const response = await this.openai.chat.completions.create({
 ```
 
 ### 하지만 또 다른 문제: AI 응답을 어떻게 파싱할까?
+
 MVP를 완성하고 새로운 기능을 추가하던 중, 이런 생각이 들었습니다.
 
 > 🤔 MVP에서는 간단하게 처리하는 것을 구현했다면 이후 추가할 기능으로는 반대로 조금 더 섬세한 요청과 결과를 받아볼 수 있게 하면 어떨까?
 
 그래서 추가한 것이 고급 기능입니다.
 
-고급 기능을 사용하면 유저는 프롬프트를 조금 더 구체적인 조건으로 작성할 수 있습니다. 
+고급 기능을 사용하면 유저는 프롬프트를 조금 더 구체적인 조건으로 작성할 수 있습니다.
 
-톤과 글자 수를 조정할 수 있고 다듬어진 이메일 뿐만 아니라 왜 그렇게 작성되었는지 **개선 근거**까지 받아볼 수 있게 됩니다. 
+톤과 글자 수를 조정할 수 있고 다듬어진 이메일 뿐만 아니라 왜 그렇게 작성되었는지 **개선 근거**까지 받아볼 수 있게 됩니다.
 
 문제는 이 두 가지를 어떻게 분리할 것인가였습니다.
 
@@ -358,11 +359,10 @@ static parseResponse(aiResponse: string): { email: string; rationale?: string } 
 
 <br/>
 
-
 ## ✒️회고
 
 ### 항상 전체를 생각하는 습관
 
-기능 하나를 추가하는 일이 단순해 보일 때도, 실제로는 전체 구조와 얽혀 예상치 못한 충돌이 발생했습니다. 
+기능 하나를 추가하는 일이 단순해 보일 때도, 실제로는 전체 구조와 얽혀 예상치 못한 충돌이 발생했습니다.
 
 이번 프로젝트를 통해 당장의 구현에 집중하기보다, 설계 단계에서부터 시스템 전체에 미칠 영향을 먼저 고민하는 습관의 중요성을 배웠습니다.
