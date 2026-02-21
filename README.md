@@ -2,7 +2,7 @@
 
 무엇을 어떻게 쓸지 고민하는 시간을 줄입니다.
 
-SayItRight는 이메일 초안을 상황에 맞게 정제하고, 아카이브·템플릿·표현 노트를 통해 사용자의 커뮤니케이션 역량을 축적할 수 있도록 설계된 서비스입니다.
+SayItRight는 **이메일 초안을 상황에 맞게 정제**하고, 아카이브·템플릿·표현 노트를 통해 **사용자의 커뮤니케이션 역량을 축적**할 수 있도록 설계된 서비스입니다.
 
 <p align="center">
   🌐 <a href="https://sayitright-web.vercel.app">Live Demo</a> &nbsp; | &nbsp;
@@ -395,7 +395,7 @@ static parseResponse(aiResponse: string): { email: string; rationale?: string } 
 
 <br/>
 
-## ✒️회고
+## ✒️ 회고
 
 ### 항상 전체를 생각하는 습관
 
