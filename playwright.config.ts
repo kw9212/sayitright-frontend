@@ -40,9 +40,32 @@ export default defineConfig({
 
   /* Configure projects for major browsers */
   projects: [
+    // 인증 설정 프로젝트 (먼저 실행됨)
+    {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+
+    // 실제 E2E 테스트 (인증 상태 재사용)
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        // 저장된 인증 상태 사용
+        storageState: 'playwright/.auth/user.json',
+      },
+      dependencies: ['setup'], // setup 완료 후 실행
+    },
+
+    // 게스트 모드 테스트 (인증 없이)
+    {
+      name: 'chromium-guest',
+      use: {
+        ...devices['Desktop Chrome'],
+        // 인증 상태 없음
+        storageState: { cookies: [], origins: [] },
+      },
+      testMatch: /.*guest.*\.spec\.ts/,
     },
 
     // 필요 시 추가 브라우저 활성화
