@@ -1,26 +1,22 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth/auth-context';
 import { MainHeader } from '@/components/layout/MainHeader';
-import { archivesRepository, type ArchiveListItem } from '@/lib/repositories/archives.repository';
+import { archivesRepository } from '@/lib/repositories/archives.repository';
 import { guestArchivesRepository } from '@/lib/repositories/guest-archives.repository';
 import { decrementArchiveCount } from '@/lib/storage/guest-limits';
 import ArchiveRow from './components/ArchiveRow';
 import ArchiveFilters from './components/ArchiveFilters';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import ConvertToTemplateModal from './components/ConvertToTemplateModal';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function ArchivesPage() {
   const auth = useAuth();
   const isGuest = auth.status === 'guest';
-
-  const [archives, setArchives] = useState<ArchiveListItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const queryClient = useQueryClient();
 
   const [filters, setFilters] = useState({
     tone: '',
@@ -38,162 +34,33 @@ export default function ArchivesPage() {
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  const requestIdRef = useRef(0);
-
-  const hasMoreRef = useRef(hasMore);
-  hasMoreRef.current = hasMore;
-
-  const initialLoadDoneRef = useRef(false);
-
-  const fetchArchives = useCallback(
-    async (pageNum: number, reset = false) => {
-      if (loading) return;
-      if (!reset && !hasMoreRef.current) {
-        return;
-      }
-
-      if (pageNum > 100) {
-        setHasMore(false);
-        return;
-      }
-
-      const requestId = ++requestIdRef.current;
-
-      setLoading(true);
-      try {
+  // TanStack Query로 무한 스크롤 구현
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, error } =
+    useInfiniteQuery({
+      queryKey: ['archives', filters, isGuest],
+      queryFn: async ({ pageParam = 1 }) => {
         const repository = isGuest ? guestArchivesRepository : archivesRepository;
-        const response = await repository.list({
-          page: pageNum,
+        return repository.list({
+          page: pageParam,
           limit: 20,
           ...filters,
         });
+      },
+      getNextPageParam: (lastPage, allPages) => {
+        const currentTotal = allPages.reduce((sum, page) => sum + page.data.items.length, 0);
+        return currentTotal < lastPage.data.total ? allPages.length + 1 : undefined;
+      },
+      initialPageParam: 1,
+      enabled: auth.status === 'authenticated' || auth.status === 'guest',
+      staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
+    });
 
-        if (requestId !== requestIdRef.current) {
-          return;
-        }
-
-        if (response.ok) {
-          const newArchives = response.data.items;
-          const serverTotal = response.data.total;
-
-          if (newArchives.length === 0) {
-            setHasMore(false);
-            setTotal(serverTotal);
-
-            if (reset) {
-              setArchives([]);
-            }
-
-            return;
-          }
-
-          let nextTotalLoaded = 0;
-          setArchives((prev) => {
-            const updatedArchives = reset ? newArchives : [...prev, ...newArchives];
-            nextTotalLoaded = updatedArchives.length;
-            return updatedArchives;
-          });
-
-          const hasMoreValue = nextTotalLoaded < serverTotal;
-          setHasMore(hasMoreValue);
-
-          setTotal(serverTotal);
-        }
-      } catch (error) {
-        console.error('Archives 조회 실패:', error);
-
-        setHasMore(false);
-
-        const errorMessage =
-          error instanceof Error ? error.message : '아카이브 조회에 실패했습니다.';
-
-        if (errorMessage.includes('로그인이 필요')) {
-          toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
-          setTimeout(() => {
-            window.location.href = '/intro';
-          }, 3000);
-        } else {
-          toast.error(errorMessage);
-        }
-      } finally {
-        setLoading(false);
-      }
-    },
-    [filters, loading, isGuest],
-  );
-
+  // IntersectionObserver로 자동 페이지 로드
   useEffect(() => {
-    console.log(
-      '[Archives] useEffect 실행 - auth.status:',
-      auth.status,
-      'initialLoadDone:',
-      initialLoadDoneRef.current,
-    );
-
-    if (
-      (auth.status === 'authenticated' || auth.status === 'guest') &&
-      !initialLoadDoneRef.current
-    ) {
-      console.log('[Archives] 초기 로드 시작');
-      initialLoadDoneRef.current = true;
-      setPage(1);
-      setHasMore(true);
-      void fetchArchives(1, true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.status]);
-
-  useEffect(() => {
-    if (!initialLoadDoneRef.current) {
-      return;
-    }
-
-    setPage(1);
-    setHasMore(true);
-    void fetchArchives(1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (
-        (auth.status === 'authenticated' || auth.status === 'guest') &&
-        archives.length === 0 &&
-        !loading &&
-        initialLoadDoneRef.current === false
-      ) {
-        initialLoadDoneRef.current = true;
-        setPage(1);
-        setHasMore(true);
-        void fetchArchives(1, true);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.status, archives.length, loading]);
-
-  useEffect(() => {
-    if (!initialLoadDoneRef.current) {
-      return;
-    }
-
-    if (!hasMoreRef.current) {
-      return;
-    }
-
-    if (archives.length === 0) {
-      return;
-    }
-
     const observer = new IntersectionObserver(
       (entries) => {
-        const isIntersecting = entries[0].isIntersecting;
-
-        if (isIntersecting && hasMoreRef.current && !loading && archives.length > 0) {
-          const nextPage = page + 1;
-          setPage(nextPage);
-          void fetchArchives(nextPage, false);
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage();
         }
       },
       { threshold: 0.1 },
@@ -209,7 +76,53 @@ export default function ArchivesPage() {
         observer.unobserve(currentTarget);
       }
     };
-  }, [page, loading, fetchArchives, hasMore, archives.length]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // 삭제 mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const repository = isGuest ? guestArchivesRepository : archivesRepository;
+      await Promise.all(ids.map((id) => repository.remove(id)));
+    },
+    onSuccess: (_, deletedIds) => {
+      // 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: ['archives'] });
+
+      // 게스트 모드: 사용량 카운트 감소
+      if (isGuest) {
+        deletedIds.forEach(() => decrementArchiveCount());
+      }
+
+      setSelectedIds(new Set());
+      setShowDeleteModal(false);
+      setIsDeleteMode(false);
+      toast.success(`${deletedIds.length}개 아카이브가 삭제되었습니다.`);
+    },
+    onError: (error) => {
+      console.error('삭제 실패:', error);
+      toast.error(error instanceof Error ? error.message : '삭제 중 오류가 발생했습니다.');
+    },
+  });
+
+  // 에러 처리
+  useEffect(() => {
+    if (isError) {
+      const errorMessage = error instanceof Error ? error.message : '아카이브 조회에 실패했습니다.';
+
+      if (errorMessage.includes('로그인이 필요')) {
+        toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
+        setTimeout(() => {
+          window.location.href = '/intro';
+        }, 3000);
+      } else {
+        toast.error(errorMessage);
+      }
+    }
+  }, [isError, error]);
+
+  // 데이터 변환
+  const archives = data?.pages.flatMap((page) => page.data.items) ?? [];
+  const total = data?.pages[0]?.data.total ?? 0;
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -240,29 +153,7 @@ export default function ArchivesPage() {
   };
 
   const handleConfirmDelete = async () => {
-    const count = selectedIds.size;
-    const repository = isGuest ? guestArchivesRepository : archivesRepository;
-
-    toast.promise(Promise.all(Array.from(selectedIds).map((id) => repository.remove(id))), {
-      loading: `${count}개 아카이브 삭제 중...`,
-      success: () => {
-        setArchives((prev) => prev.filter((a) => !selectedIds.has(a.id)));
-        setTotal((prev) => prev - count);
-        setSelectedIds(new Set());
-
-        // 게스트 모드: 사용량 카운트 감소
-        if (isGuest) {
-          Array.from(selectedIds).forEach(() => decrementArchiveCount());
-        }
-        setShowDeleteModal(false);
-        setIsDeleteMode(false);
-        return `${count}개 아카이브가 삭제되었습니다.`;
-      },
-      error: (error) => {
-        console.error('삭제 실패:', error);
-        return error instanceof Error ? error.message : '삭제 중 오류가 발생했습니다.';
-      },
-    });
+    deleteMutation.mutate(Array.from(selectedIds));
   };
 
   const toggleDeleteMode = () => {
@@ -356,7 +247,7 @@ export default function ArchivesPage() {
         </div>
 
         <div>
-          {archives.length === 0 && !loading ? (
+          {archives.length === 0 && !isLoading ? (
             <div className="text-center py-20 text-zinc-400">
               <p className="text-xl mb-2">아카이브가 없습니다.</p>
               <p className="text-sm">이메일을 생성하면 자동으로 7일간 저장됩니다.</p>
@@ -376,7 +267,7 @@ export default function ArchivesPage() {
             </div>
           )}
 
-          {loading && (
+          {(isLoading || isFetchingNextPage) && (
             <div className="text-center py-8 text-zinc-400">
               <div className="inline-block w-8 h-8 border-4 border-zinc-600 border-t-blue-500 rounded-full animate-spin" />
               <p className="mt-2">불러오는 중...</p>
@@ -384,7 +275,7 @@ export default function ArchivesPage() {
           )}
 
           <div ref={observerTarget} className="h-20" />
-          {!hasMore && archives.length > 0 && (
+          {!hasNextPage && archives.length > 0 && (
             <div className="text-center py-8 text-zinc-500">모든 아카이브를 불러왔습니다.</div>
           )}
         </div>
@@ -401,9 +292,7 @@ export default function ArchivesPage() {
         archiveId={selectedArchiveId}
         onClose={() => setSelectedArchiveId(null)}
         onSuccess={() => {
-          setPage(1);
-          setHasMore(true);
-          void fetchArchives(1, true);
+          queryClient.invalidateQueries({ queryKey: ['archives'] });
         }}
       />
     </main>
