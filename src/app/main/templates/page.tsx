@@ -1,29 +1,22 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth/auth-context';
 import { MainHeader } from '@/components/layout/MainHeader';
-import {
-  templatesRepository,
-  type TemplateListItem,
-} from '@/lib/repositories/templates.repository';
+import { templatesRepository } from '@/lib/repositories/templates.repository';
 import { guestTemplatesRepository } from '@/lib/repositories/guest-templates.repository';
 import { decrementTemplateCount } from '@/lib/storage/guest-limits';
 import TemplateCard from './components/TemplateCard';
 import TemplateFilters from './components/TemplateFilters';
 import DeleteConfirmModal from './components/DeleteConfirmModal';
 import TemplateDetailModal from './components/TemplateDetailModal';
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function TemplatesPage() {
   const auth = useAuth();
   const isGuest = auth.status === 'guest';
-
-  const [templates, setTemplates] = useState<TemplateListItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const queryClient = useQueryClient();
 
   const [filters, setFilters] = useState({
     q: '',
@@ -42,158 +35,37 @@ export default function TemplatesPage() {
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
-  const requestIdRef = useRef(0);
-
-  const hasMoreRef = useRef(hasMore);
-  hasMoreRef.current = hasMore;
-
-  const initialLoadDoneRef = useRef(false);
-
-  const fetchTemplates = useCallback(
-    async (pageNum: number, reset = false) => {
-      if (loading) return;
-      if (!reset && !hasMoreRef.current) {
-        return;
-      }
-
-      if (pageNum > 100) {
-        setHasMore(false);
-        return;
-      }
-
-      const requestId = ++requestIdRef.current;
-
-      setLoading(true);
-      try {
+  // TanStack Query로 무한 스크롤 구현
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, error } =
+    useInfiniteQuery({
+      queryKey: ['templates', filters, isGuest],
+      queryFn: async ({ pageParam = 1 }) => {
         const apiFilters = {
           ...filters,
           q: filters.q?.trim() || '',
         };
-
         const repository = isGuest ? guestTemplatesRepository : templatesRepository;
-        const response = await repository.list({
-          page: pageNum,
+        return repository.list({
+          page: pageParam,
           limit: 20,
           ...apiFilters,
         });
+      },
+      getNextPageParam: (lastPage, allPages) => {
+        const currentTotal = allPages.reduce((sum, page) => sum + page.data.items.length, 0);
+        return currentTotal < lastPage.data.total ? allPages.length + 1 : undefined;
+      },
+      initialPageParam: 1,
+      enabled: auth.status === 'authenticated' || auth.status === 'guest',
+      staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
+    });
 
-        if (requestId !== requestIdRef.current) {
-          return;
-        }
-
-        if (response.ok) {
-          const newTemplates = response.data.items;
-          const serverTotal = response.data.total;
-
-          if (newTemplates.length === 0) {
-            setHasMore(false);
-            setTotal(serverTotal);
-
-            if (reset) {
-              setTemplates([]);
-            }
-
-            return;
-          }
-
-          let nextTotalLoaded = 0;
-          setTemplates((prev) => {
-            const updatedTemplates = reset ? newTemplates : [...prev, ...newTemplates];
-            nextTotalLoaded = updatedTemplates.length;
-            return updatedTemplates;
-          });
-
-          const hasMoreValue = nextTotalLoaded < serverTotal;
-          setHasMore(hasMoreValue);
-
-          setTotal(serverTotal);
-        }
-      } catch (error) {
-        console.error('Templates 조회 실패:', error);
-
-        setHasMore(false);
-
-        const errorMessage = error instanceof Error ? error.message : '템플릿 조회에 실패했습니다.';
-
-        if (errorMessage.includes('로그인이 필요')) {
-          toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
-          setTimeout(() => {
-            window.location.href = '/intro';
-          }, 3000);
-        } else {
-          toast.error(errorMessage);
-        }
-      } finally {
-        setLoading(false);
-      }
-    },
-    [filters, loading],
-  );
-
+  // IntersectionObserver로 자동 페이지 로드
   useEffect(() => {
-    if (
-      (auth.status === 'authenticated' || auth.status === 'guest') &&
-      !initialLoadDoneRef.current
-    ) {
-      initialLoadDoneRef.current = true;
-      setPage(1);
-      setHasMore(true);
-      void fetchTemplates(1, true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.status]);
-
-  useEffect(() => {
-    if (!initialLoadDoneRef.current) {
-      return;
-    }
-
-    setPage(1);
-    setHasMore(true);
-    void fetchTemplates(1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (
-        (auth.status === 'authenticated' || auth.status === 'guest') &&
-        templates.length === 0 &&
-        !loading &&
-        initialLoadDoneRef.current === false
-      ) {
-        initialLoadDoneRef.current = true;
-        setPage(1);
-        setHasMore(true);
-        void fetchTemplates(1, true);
-      }
-    }, 500);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.status, templates.length, loading]);
-
-  useEffect(() => {
-    if (!initialLoadDoneRef.current) {
-      return;
-    }
-
-    if (!hasMoreRef.current) {
-      return;
-    }
-
-    if (templates.length === 0) {
-      return;
-    }
-
     const observer = new IntersectionObserver(
       (entries) => {
-        const isIntersecting = entries[0].isIntersecting;
-
-        if (isIntersecting && hasMoreRef.current && !loading && templates.length > 0) {
-          const nextPage = page + 1;
-          setPage(nextPage);
-          void fetchTemplates(nextPage, false);
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage();
         }
       },
       { threshold: 0.1 },
@@ -209,7 +81,53 @@ export default function TemplatesPage() {
         observer.unobserve(currentTarget);
       }
     };
-  }, [page, loading, fetchTemplates, hasMore, templates.length]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // 에러 처리
+  useEffect(() => {
+    if (isError) {
+      const errorMessage = error instanceof Error ? error.message : '템플릿 조회에 실패했습니다.';
+
+      if (errorMessage.includes('로그인이 필요')) {
+        toast.error('세션이 만료되었습니다. 다시 로그인해주세요.');
+        setTimeout(() => {
+          window.location.href = '/intro';
+        }, 3000);
+      } else {
+        toast.error(errorMessage);
+      }
+    }
+  }, [isError, error]);
+
+  // 데이터 변환
+  const templates = data?.pages.flatMap((page) => page.data.items) ?? [];
+  const total = data?.pages[0]?.data.total ?? 0;
+
+  // 삭제 mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const repository = isGuest ? guestTemplatesRepository : templatesRepository;
+      await Promise.all(ids.map((id) => repository.remove(id)));
+    },
+    onSuccess: (_, deletedIds) => {
+      // 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: ['templates'] });
+
+      // 게스트 모드: 사용량 카운트 감소
+      if (isGuest) {
+        deletedIds.forEach(() => decrementTemplateCount());
+      }
+
+      setSelectedIds(new Set());
+      setShowDeleteModal(false);
+      setIsDeleteMode(false);
+      toast.success(`${deletedIds.length}개 템플릿이 삭제되었습니다.`);
+    },
+    onError: (error) => {
+      console.error('삭제 실패:', error);
+      toast.error(error instanceof Error ? error.message : '삭제 중 오류가 발생했습니다.');
+    },
+  });
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -240,30 +158,7 @@ export default function TemplatesPage() {
   };
 
   const handleConfirmDelete = async () => {
-    const count = selectedIds.size;
-    const repository = isGuest ? guestTemplatesRepository : templatesRepository;
-
-    toast.promise(Promise.all(Array.from(selectedIds).map((id) => repository.remove(id))), {
-      loading: `${count}개 템플릿 삭제 중...`,
-      success: () => {
-        setTemplates((prev) => prev.filter((t) => !selectedIds.has(t.id)));
-        setTotal((prev) => prev - count);
-        setSelectedIds(new Set());
-        setShowDeleteModal(false);
-        setIsDeleteMode(false);
-
-        // 게스트 모드: 사용량 카운트 감소
-        if (isGuest) {
-          Array.from(selectedIds).forEach(() => decrementTemplateCount());
-        }
-
-        return `${count}개 템플릿이 삭제되었습니다.`;
-      },
-      error: (error) => {
-        console.error('삭제 실패:', error);
-        return error instanceof Error ? error.message : '삭제 중 오류가 발생했습니다.';
-      },
-    });
+    deleteMutation.mutate(Array.from(selectedIds));
   };
 
   const toggleDeleteMode = () => {
@@ -328,7 +223,7 @@ export default function TemplatesPage() {
         </div>
 
         <div>
-          {templates.length === 0 && !loading ? (
+          {templates.length === 0 && !isLoading ? (
             <div className="text-center py-20 text-zinc-400">
               <p className="text-xl mb-2">저장된 템플릿이 없습니다.</p>
               <p className="text-sm">
@@ -350,7 +245,7 @@ export default function TemplatesPage() {
             </div>
           )}
 
-          {loading && (
+          {(isLoading || isFetchingNextPage) && (
             <div className="text-center py-8 text-zinc-400">
               <div className="inline-block w-8 h-8 border-4 border-zinc-600 border-t-blue-500 rounded-full animate-spin" />
               <p className="mt-2">불러오는 중...</p>
@@ -359,7 +254,7 @@ export default function TemplatesPage() {
 
           <div ref={observerTarget} className="h-20" />
 
-          {!hasMore && templates.length > 0 && (
+          {!hasNextPage && templates.length > 0 && (
             <div className="text-center py-8 text-zinc-500">모든 템플릿을 불러왔습니다.</div>
           )}
         </div>
@@ -376,9 +271,7 @@ export default function TemplatesPage() {
         templateId={selectedTemplateId}
         onClose={() => setSelectedTemplateId(null)}
         onUpdate={() => {
-          setPage(1);
-          setHasMore(true);
-          void fetchTemplates(1, true);
+          queryClient.invalidateQueries({ queryKey: ['templates'] });
         }}
       />
     </main>
