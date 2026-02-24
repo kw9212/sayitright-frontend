@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -14,26 +14,25 @@ import { Plus, Search, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/auth-context';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { tokenStore } from '@/lib/auth/token';
-import { notesRepository, NoteListItem, Note } from '@/lib/repositories/notes.repository';
+import { notesRepository, Note } from '@/lib/repositories/notes.repository';
 import { guestNotesRepository } from '@/lib/repositories/guest-notes.repository';
 import { decrementNoteCount, incrementNoteCount } from '@/lib/storage/guest-limits';
 import { NoteItem } from './components/NoteItem';
 import { NoteEditModal } from './components/NoteEditModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
-import { toast } from 'sonner';
+import { toast as sonnerToast } from 'sonner';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function NotesPage() {
   const auth = useAuth();
   const isGuest = auth.status === 'guest';
+  const queryClient = useQueryClient();
 
-  const [notes, setNotes] = useState<NoteListItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [sortOption, setSortOption] = useState<string>('latest');
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tokenRefreshed, setTokenRefreshed] = useState(false);
 
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -41,11 +40,14 @@ export default function NotesPage() {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
-  const [tokenRefreshed, setTokenRefreshed] = useState(false);
 
+  // 인증 사용자: 마운트 시 토큰 갱신 후 tokenRefreshed = true
+  // 게스트: 토큰 갱신 불필요 → useQuery enabled에서 직접 처리
   useEffect(() => {
+    if (auth.status !== 'authenticated') return;
+
     const refreshTokenOnMount = async () => {
-      if (auth.status === 'authenticated' && tokenStore.getAccessToken()) {
+      if (tokenStore.getAccessToken()) {
         try {
           const response = await fetch('/api/auth/refresh', { method: 'POST' });
           const data = await response.json();
@@ -60,42 +62,148 @@ export default function NotesPage() {
       setTokenRefreshed(true);
     };
 
-    if (auth.status === 'authenticated') {
-      void refreshTokenOnMount();
-    } else if (auth.status === 'guest') {
-      setTokenRefreshed(true);
-    }
+    void refreshTokenOnMount();
   }, [auth.status]);
 
-  const fetchNotes = useCallback(async () => {
-    if ((auth.status !== 'authenticated' && auth.status !== 'guest') || !tokenRefreshed) {
-      return;
-    }
-
-    setIsLoading(true);
-    try {
+  // TanStack Query로 노트 목록 조회
+  const {
+    data: notesData,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ['notes', searchTerm, sortOption, currentPage, isGuest],
+    queryFn: async () => {
       const repository = isGuest ? guestNotesRepository : notesRepository;
-      const response = await repository.list({
+      return repository.list({
         q: searchTerm || undefined,
         sort: sortOption as 'latest' | 'oldest' | 'term_asc' | 'term_desc',
         page: currentPage,
         limit: 10,
       });
+    },
+    // 게스트는 토큰 갱신이 불필요하므로 tokenRefreshed 조건 없이 바로 활성화
+    enabled: auth.status === 'guest' || (auth.status === 'authenticated' && tokenRefreshed),
+    staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
+  });
 
-      setNotes(response.notes);
-      setTotalPages(response.pagination.totalPages);
-      setTotal(response.pagination.total);
-    } catch (error) {
-      console.error('용어 목록 조회 실패:', error);
-      toast.error(error instanceof Error ? error.message : '용어 목록 조회에 실패했습니다.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [auth.status, tokenRefreshed, searchTerm, sortOption, currentPage, isGuest]);
-
+  // 에러 처리
   useEffect(() => {
-    fetchNotes();
-  }, [fetchNotes]);
+    if (isError) {
+      const errorMessage =
+        error instanceof Error ? error.message : '용어 목록 조회에 실패했습니다.';
+      sonnerToast.error(errorMessage);
+    }
+  }, [isError, error]);
+
+  const notes = notesData?.notes ?? [];
+  const totalPages = notesData?.pagination.totalPages ?? 1;
+  const total = notesData?.pagination.total ?? 0;
+
+  // 생성/수정 mutation
+  const saveMutation = useMutation({
+    mutationFn: async (params: {
+      id?: string;
+      data: { term: string; description?: string; example?: string };
+    }) => {
+      const repository = isGuest ? guestNotesRepository : notesRepository;
+      if (params.id) {
+        return repository.update(params.id, params.data);
+      } else {
+        return repository.create(params.data);
+      }
+    },
+    onSuccess: (_, variables) => {
+      // 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+
+      // 게스트 모드: 신규 생성 시 카운트 증가
+      if (!variables.id && isGuest) {
+        incrementNoteCount();
+      }
+
+      sonnerToast.success(variables.id ? '용어가 수정되었습니다.' : '용어가 추가되었습니다.');
+    },
+    onError: (error) => {
+      throw error;
+    },
+  });
+
+  // 삭제 mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const repository = isGuest ? guestNotesRepository : notesRepository;
+      await Promise.all(ids.map((id) => repository.remove(id)));
+    },
+    onSuccess: (_, deletedIds) => {
+      // 캐시 무효화
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+
+      // 게스트 모드: 사용량 카운트 감소
+      if (isGuest) {
+        deletedIds.forEach(() => decrementNoteCount());
+      }
+
+      setSelectedIds(new Set());
+      setShowDeleteModal(false);
+      setIsDeleteMode(false);
+      sonnerToast.success(`${deletedIds.length}개의 용어가 삭제되었습니다.`);
+    },
+    onError: (error) => {
+      console.error('용어 삭제 실패:', error);
+      sonnerToast.error(error instanceof Error ? error.message : '용어 삭제에 실패했습니다.');
+    },
+  });
+
+  // 즐겨찾기 토글 mutation
+  const toggleStarMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const repository = isGuest ? guestNotesRepository : notesRepository;
+      return repository.toggleStar(id);
+    },
+    onMutate: async (id) => {
+      // 낙관적 업데이트
+      await queryClient.cancelQueries({ queryKey: ['notes'] });
+
+      const previousData = queryClient.getQueryData([
+        'notes',
+        searchTerm,
+        sortOption,
+        currentPage,
+        isGuest,
+      ]);
+
+      queryClient.setQueryData(
+        ['notes', searchTerm, sortOption, currentPage, isGuest],
+        (old: typeof notesData) => {
+          if (!old) return old;
+          return {
+            ...old,
+            notes: old.notes.map((note) =>
+              note.id === id ? { ...note, isStarred: !note.isStarred } : note,
+            ),
+          };
+        },
+      );
+
+      return { previousData };
+    },
+    onError: (error, _, context) => {
+      // 에러 시 롤백
+      if (context?.previousData) {
+        queryClient.setQueryData(
+          ['notes', searchTerm, sortOption, currentPage, isGuest],
+          context.previousData,
+        );
+      }
+      console.error('중요 표시 토글 실패:', error);
+      sonnerToast.error('중요 표시 변경에 실패했습니다.');
+    },
+    onSettled: () => {
+      // 서버 데이터와 동기화
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+    },
+  });
 
   const handleSearch = () => {
     setSearchTerm(searchInput.trim());
@@ -113,29 +221,17 @@ export default function NotesPage() {
     setIsEditModalOpen(true);
   };
 
-  const handleEditNote = (note: NoteListItem) => {
+  const handleEditNote = (note: Note | { id: string; term: string }) => {
     setEditingNote(note as Note);
     setIsEditModalOpen(true);
   };
 
   const handleSaveNote = async (data: { term: string; description?: string; example?: string }) => {
     try {
-      const repository = isGuest ? guestNotesRepository : notesRepository;
-
-      if (editingNote) {
-        await repository.update(editingNote.id, data);
-        toast.success('용어가 수정되었습니다.');
-      } else {
-        await repository.create(data);
-
-        // 게스트 모드: 노트 카운트 증가
-        if (isGuest) {
-          incrementNoteCount();
-        }
-
-        toast.success('용어가 추가되었습니다.');
-      }
-      await fetchNotes();
+      await saveMutation.mutateAsync({
+        id: editingNote?.id,
+        data,
+      });
     } catch (error) {
       throw error;
     }
@@ -158,44 +254,18 @@ export default function NotesPage() {
 
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) {
-      toast.error('삭제할 용어를 선택해주세요.');
+      sonnerToast.error('삭제할 용어를 선택해주세요.');
       return;
     }
     setShowDeleteModal(true);
   };
 
   const handleConfirmDelete = async () => {
-    try {
-      const repository = isGuest ? guestNotesRepository : notesRepository;
-      await Promise.all(Array.from(selectedIds).map((id) => repository.remove(id)));
-
-      // 게스트 모드: 사용량 카운트 감소
-      if (isGuest) {
-        Array.from(selectedIds).forEach(() => decrementNoteCount());
-      }
-
-      toast.success(`${selectedIds.size}개의 용어가 삭제되었습니다.`);
-      setShowDeleteModal(false);
-      setSelectedIds(new Set());
-      setIsDeleteMode(false);
-      await fetchNotes();
-    } catch (error) {
-      console.error('용어 삭제 실패:', error);
-      toast.error(error instanceof Error ? error.message : '용어 삭제에 실패했습니다.');
-    }
+    deleteMutation.mutate(Array.from(selectedIds));
   };
 
   const handleToggleStar = async (id: string) => {
-    try {
-      const repository = isGuest ? guestNotesRepository : notesRepository;
-      await repository.toggleStar(id);
-      setNotes((prev) =>
-        prev.map((note) => (note.id === id ? { ...note, isStarred: !note.isStarred } : note)),
-      );
-    } catch (error) {
-      console.error('중요 표시 토글 실패:', error);
-      toast.error('중요 표시 변경에 실패했습니다.');
-    }
+    toggleStarMutation.mutate(id);
   };
 
   if (auth.status !== 'authenticated' && auth.status !== 'guest') {
