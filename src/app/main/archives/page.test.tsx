@@ -3,6 +3,7 @@
  */
 
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ArchivesPage from './page';
 import * as authContext from '@/lib/auth/auth-context';
 import { archivesRepository } from '@/lib/repositories/archives.repository';
@@ -114,6 +115,19 @@ const mockListResponse = (items: ReturnType<typeof makeArchives>, total?: number
   data: { items, total: total ?? items.length },
 });
 
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+const renderWithQueryClient = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
 describe('ArchivesPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -125,13 +139,13 @@ describe('ArchivesPage', () => {
   describe('로딩 상태', () => {
     it('auth.status가 loading이면 "로딩 중..."을 표시한다', () => {
       (authContext.useAuth as jest.Mock).mockReturnValue({ status: 'loading' });
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       expect(screen.getByText('로딩 중...')).toBeInTheDocument();
     });
 
     it('데이터 로드 중에는 스피너를 표시한다', async () => {
       (archivesRepository.list as jest.Mock).mockImplementation(() => new Promise(() => {}));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByText('불러오는 중...')).toBeInTheDocument());
     });
   });
@@ -142,7 +156,7 @@ describe('ArchivesPage', () => {
     it('아카이브 목록을 표시한다', async () => {
       const archives = makeArchives(3);
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(archives));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => {
         expect(screen.getByTestId('archive-row-1')).toBeInTheDocument();
         expect(screen.getByTestId('archive-row-2')).toBeInTheDocument();
@@ -154,19 +168,19 @@ describe('ArchivesPage', () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(
         mockListResponse(makeArchives(5), 5),
       );
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByText('총 5개의 아카이브')).toBeInTheDocument());
     });
 
     it('아카이브가 없으면 빈 상태 메시지를 표시한다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([], 0));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByText('아카이브가 없습니다.')).toBeInTheDocument());
     });
 
     it('authenticated 모드에서는 archivesRepository.list를 호출한다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([]));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() =>
         expect(archivesRepository.list).toHaveBeenCalledWith(
           expect.objectContaining({ page: 1, limit: 20 }),
@@ -177,7 +191,7 @@ describe('ArchivesPage', () => {
     it('guest 모드에서는 guestArchivesRepository.list를 호출한다', async () => {
       (authContext.useAuth as jest.Mock).mockReturnValue({ status: 'guest' });
       (guestArchivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([]));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() =>
         expect(guestArchivesRepository.list).toHaveBeenCalledWith(
           expect.objectContaining({ page: 1, limit: 20 }),
@@ -191,13 +205,13 @@ describe('ArchivesPage', () => {
   describe('에러 처리', () => {
     it('조회 실패 시 에러 토스트를 표시한다', async () => {
       (archivesRepository.list as jest.Mock).mockRejectedValue(new Error('Network error'));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Network error'));
     });
 
     it('"로그인이 필요" 오류 시 세션 만료 토스트를 표시한다', async () => {
       (archivesRepository.list as jest.Mock).mockRejectedValue(new Error('로그인이 필요합니다.'));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() =>
         expect(toast.error).toHaveBeenCalledWith('세션이 만료되었습니다. 다시 로그인해주세요.'),
       );
@@ -209,7 +223,7 @@ describe('ArchivesPage', () => {
   describe('삭제 모드', () => {
     it('"삭제" 버튼 클릭 시 삭제 모드로 전환된다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
@@ -220,7 +234,7 @@ describe('ArchivesPage', () => {
 
     it('"취소" 버튼 클릭 시 일반 모드로 돌아온다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
@@ -231,7 +245,7 @@ describe('ArchivesPage', () => {
 
     it('삭제 모드에서 체크박스 클릭 시 선택된다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
@@ -242,7 +256,7 @@ describe('ArchivesPage', () => {
 
     it('전체 선택 버튼이 동작한다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(3)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
@@ -253,27 +267,24 @@ describe('ArchivesPage', () => {
 
     it('전체 선택 후 다시 클릭하면 전체 해제된다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
       fireEvent.click(screen.getByRole('button', { name: /전체 선택/ }));
-      // 두 span이 있으므로 accessible name이 "전체 해제전체 해제" → regex 사용
       fireEvent.click(screen.getByRole('button', { name: /전체 해제/ }));
 
-      // 전체 해제 후 선택 수가 0
       const deleteBtn = screen.getByRole('button', { name: /^삭제 \(/ });
       expect(deleteBtn).toHaveTextContent('삭제 (0)');
     });
 
     it('선택 없이 삭제 클릭 시 삭제 버튼이 비활성화된다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
 
-      // 선택 수가 0이면 삭제 버튼이 disabled
       const deleteCountBtn = screen.getByRole('button', { name: /^삭제 \(/ });
       expect(deleteCountBtn).toBeDisabled();
     });
@@ -284,7 +295,7 @@ describe('ArchivesPage', () => {
   describe('삭제 확인 모달', () => {
     it('항목 선택 후 삭제 클릭 시 모달이 열린다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
@@ -296,7 +307,7 @@ describe('ArchivesPage', () => {
 
     it('모달에서 취소 클릭 시 모달이 닫힌다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
@@ -307,10 +318,10 @@ describe('ArchivesPage', () => {
       expect(screen.queryByTestId('delete-modal')).not.toBeInTheDocument();
     });
 
-    it('모달에서 확인 클릭 시 toast.promise를 호출한다', async () => {
+    it('모달에서 확인 클릭 시 archivesRepository.remove를 호출한다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      (toast.promise as jest.Mock).mockImplementation(() => {});
-      render(<ArchivesPage />);
+      (archivesRepository.remove as jest.Mock).mockResolvedValue({ ok: true });
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
@@ -318,7 +329,26 @@ describe('ArchivesPage', () => {
       fireEvent.click(screen.getByRole('button', { name: '삭제 (1)' }));
       fireEvent.click(screen.getByTestId('confirm-delete'));
 
-      expect(toast.promise).toHaveBeenCalled();
+      await waitFor(() => expect(archivesRepository.remove).toHaveBeenCalledWith('1'));
+    });
+
+    it('삭제 성공 시 toast.success를 호출한다', async () => {
+      (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
+      (archivesRepository.remove as jest.Mock).mockResolvedValue({ ok: true });
+      renderWithQueryClient(<ArchivesPage />);
+      await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: '삭제' }));
+      fireEvent.click(screen.getByTestId('checkbox-1'));
+      fireEvent.click(screen.getByRole('button', { name: '삭제 (1)' }));
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('confirm-delete'));
+      });
+
+      await waitFor(() =>
+        expect(toast.success).toHaveBeenCalledWith('1개 아카이브가 삭제되었습니다.'),
+      );
     });
 
     it('게스트 모드 삭제 성공 시 decrementArchiveCount를 호출한다', async () => {
@@ -328,26 +358,12 @@ describe('ArchivesPage', () => {
       );
       (guestArchivesRepository.remove as jest.Mock).mockResolvedValue({ ok: true });
 
-      (toast.promise as jest.Mock).mockImplementation(async (promise, options) => {
-        await promise;
-        options.success();
-      });
-
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '삭제' }));
       fireEvent.click(screen.getByTestId('checkbox-1'));
-
-      // 선택 수가 1인 삭제 버튼 클릭
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: /^삭제 \(/ })).toHaveTextContent('삭제 (1)'),
-      );
-
-      fireEvent.click(screen.getByRole('button', { name: /^삭제 \(/ }));
-
-      // 모달이 열릴 때까지 대기
-      await waitFor(() => expect(screen.getByTestId('confirm-delete')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: '삭제 (1)' }));
 
       await act(async () => {
         fireEvent.click(screen.getByTestId('confirm-delete'));
@@ -362,7 +378,7 @@ describe('ArchivesPage', () => {
   describe('필터', () => {
     it('필터 변경 시 목록을 새로 조회한다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       const callCountBefore = (archivesRepository.list as jest.Mock).mock.calls.length;
@@ -377,7 +393,7 @@ describe('ArchivesPage', () => {
 
     it('필터 적용 시 tone 파라미터를 포함해 호출한다', async () => {
       (archivesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeArchives(2)));
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId('apply-filter'));
@@ -394,7 +410,6 @@ describe('ArchivesPage', () => {
 
   describe('모든 목록 로드 완료', () => {
     it('IntersectionObserver가 교차되면 다음 페이지를 호출한다', async () => {
-      // IntersectionObserver 생성자에서 콜백 캡처
       let ioCallback: ((entries: { isIntersecting: boolean }[]) => void) | null = null;
       const MockIO = jest.fn((cb: (entries: { isIntersecting: boolean }[]) => void) => {
         ioCallback = cb;
@@ -410,16 +425,13 @@ describe('ArchivesPage', () => {
         mockListResponse(makeArchives(3), 10),
       );
 
-      render(<ArchivesPage />);
+      renderWithQueryClient(<ArchivesPage />);
       await waitFor(() => expect(screen.getByTestId('archive-row-1')).toBeInTheDocument());
 
-      // ioCallback이 설정될 때까지 대기
       await waitFor(() => expect(ioCallback).not.toBeNull());
 
-      // IntersectionObserver 콜백 트리거 → 다음 페이지 요청
       await act(async () => {
         ioCallback!([{ isIntersecting: true }]);
-        // 비동기 fetch 완료를 위해 잠시 대기
         await Promise.resolve();
       });
 
@@ -427,7 +439,6 @@ describe('ArchivesPage', () => {
         expect(archivesRepository.list).toHaveBeenCalledWith(expect.objectContaining({ page: 2 })),
       );
 
-      // 원래 mock 복원
       Object.defineProperty(global, 'IntersectionObserver', {
         value: jest.fn(() => ({ observe: jest.fn(), unobserve: jest.fn(), disconnect: jest.fn() })),
         writable: true,

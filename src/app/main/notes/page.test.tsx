@@ -2,7 +2,8 @@
  * NotesPage 단위 테스트
  */
 
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import NotesPage from './page';
 import * as authContext from '@/lib/auth/auth-context';
 import { notesRepository } from '@/lib/repositories/notes.repository';
@@ -146,6 +147,19 @@ const mockListResponse = (notes: ReturnType<typeof makeNotes>, total?: number) =
   },
 });
 
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+const renderWithQueryClient = (ui: React.ReactElement) => {
+  const queryClient = createTestQueryClient();
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+};
+
 describe('NotesPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -160,13 +174,13 @@ describe('NotesPage', () => {
   describe('로딩 상태', () => {
     it('auth.status가 loading이 아니면 null을 반환하지 않는다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([]));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByText('용어 노트')).toBeInTheDocument());
     });
 
     it('데이터 로드 중에는 "로딩 중..."을 표시한다', async () => {
       (notesRepository.list as jest.Mock).mockImplementation(() => new Promise(() => {}));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByText('로딩 중...')).toBeInTheDocument());
     });
   });
@@ -175,7 +189,7 @@ describe('NotesPage', () => {
     it('용어 목록을 표시한다', async () => {
       const notes = makeNotes(3);
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(notes));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => {
         expect(screen.getByTestId('note-item-1')).toBeInTheDocument();
         expect(screen.getByTestId('note-item-2')).toBeInTheDocument();
@@ -185,19 +199,19 @@ describe('NotesPage', () => {
 
     it('총 개수를 표시한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(5), 5));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByText('총 5개의 용어')).toBeInTheDocument());
     });
 
     it('용어가 없으면 빈 상태 메시지를 표시한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([], 0));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByText('저장된 용어가 없습니다.')).toBeInTheDocument());
     });
 
     it('authenticated 모드에서는 notesRepository.list를 호출한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([]));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() =>
         expect(notesRepository.list).toHaveBeenCalledWith(
           expect.objectContaining({ page: 1, limit: 10 }),
@@ -208,7 +222,7 @@ describe('NotesPage', () => {
     it('guest 모드에서는 guestNotesRepository.list를 호출한다', async () => {
       (authContext.useAuth as jest.Mock).mockReturnValue({ status: 'guest' });
       (guestNotesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([]));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() =>
         expect(guestNotesRepository.list).toHaveBeenCalledWith(
           expect.objectContaining({ page: 1, limit: 10 }),
@@ -220,7 +234,7 @@ describe('NotesPage', () => {
   describe('에러 처리', () => {
     it('조회 실패 시 에러 토스트를 표시한다', async () => {
       (notesRepository.list as jest.Mock).mockRejectedValue(new Error('Network error'));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Network error'));
     });
   });
@@ -228,7 +242,7 @@ describe('NotesPage', () => {
   describe('검색', () => {
     it('검색 버튼 클릭 시 검색어로 목록을 조회한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(2)));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       const searchInput = screen.getByPlaceholderText('용어, 설명, 예시 검색...');
@@ -244,7 +258,7 @@ describe('NotesPage', () => {
 
     it('Enter 키 입력 시 검색을 실행한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(2)));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       const searchInput = screen.getByPlaceholderText('용어, 설명, 예시 검색...');
@@ -262,7 +276,7 @@ describe('NotesPage', () => {
   describe('삭제 모드', () => {
     it('"선택 삭제" 버튼 클릭 시 삭제 모드로 전환된다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(2)));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '선택 삭제' }));
@@ -273,7 +287,7 @@ describe('NotesPage', () => {
 
     it('"취소" 버튼 클릭 시 일반 모드로 돌아온다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(2)));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '선택 삭제' }));
@@ -284,7 +298,7 @@ describe('NotesPage', () => {
 
     it('체크박스 클릭 시 선택된다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(2)));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '선택 삭제' }));
@@ -293,9 +307,9 @@ describe('NotesPage', () => {
       expect(screen.getByRole('button', { name: /삭제 \(1\)/ })).toBeInTheDocument();
     });
 
-    it('선택 없이 삭제 클릭 시 에러 토스트를 표시한다', async () => {
+    it('선택 없이 삭제 클릭 시 삭제 버튼이 비활성화된다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(2)));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '선택 삭제' }));
@@ -308,7 +322,7 @@ describe('NotesPage', () => {
   describe('삭제 확인 모달', () => {
     it('항목 선택 후 삭제 클릭 시 모달이 열린다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(2)));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '선택 삭제' }));
@@ -321,7 +335,7 @@ describe('NotesPage', () => {
     it('모달에서 확인 클릭 시 삭제를 실행한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(2)));
       (notesRepository.remove as jest.Mock).mockResolvedValue({ ok: true });
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '선택 삭제' }));
@@ -336,13 +350,16 @@ describe('NotesPage', () => {
       (authContext.useAuth as jest.Mock).mockReturnValue({ status: 'guest' });
       (guestNotesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(1)));
       (guestNotesRepository.remove as jest.Mock).mockResolvedValue({ ok: true });
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '선택 삭제' }));
       fireEvent.click(screen.getByTestId('checkbox-1'));
       fireEvent.click(screen.getByRole('button', { name: /삭제 \(1\)/ }));
-      fireEvent.click(screen.getByTestId('confirm-delete'));
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('confirm-delete'));
+      });
 
       await waitFor(() => expect(guestLimits.decrementNoteCount).toHaveBeenCalled());
     });
@@ -351,7 +368,7 @@ describe('NotesPage', () => {
   describe('용어 추가/수정', () => {
     it('"추가" 버튼 클릭 시 편집 모달이 열린다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([]));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByRole('button', { name: /추가/ })).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: /추가/ }));
@@ -361,8 +378,8 @@ describe('NotesPage', () => {
 
     it('용어 저장 시 notesRepository.create를 호출한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([]));
-      (notesRepository.create as jest.Mock).mockResolvedValue({ ok: true });
-      render(<NotesPage />);
+      (notesRepository.create as jest.Mock).mockResolvedValue({ id: '1', term: '새 용어' });
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByRole('button', { name: /추가/ })).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: /추가/ }));
@@ -374,13 +391,12 @@ describe('NotesPage', () => {
     it('게스트 모드 용어 추가 시 incrementNoteCount를 호출한다', async () => {
       (authContext.useAuth as jest.Mock).mockReturnValue({ status: 'guest' });
       (guestNotesRepository.list as jest.Mock).mockResolvedValue(mockListResponse([]));
-      (guestNotesRepository.create as jest.Mock).mockResolvedValue({ ok: true });
-      render(<NotesPage />);
+      (guestNotesRepository.create as jest.Mock).mockResolvedValue({ id: '1', term: '새 용어' });
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() =>
         expect(screen.getAllByRole('button', { name: /추가/ }).length).toBeGreaterThan(0),
       );
 
-      // 첫 번째 "추가" 버튼 클릭 (상단 헤더)
       fireEvent.click(screen.getAllByRole('button', { name: /추가/ })[0]);
       fireEvent.click(screen.getByTestId('save-note'));
 
@@ -389,7 +405,7 @@ describe('NotesPage', () => {
 
     it('수정 버튼 클릭 시 편집 모달이 열린다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(1)));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId('edit-1'));
@@ -399,8 +415,8 @@ describe('NotesPage', () => {
 
     it('용어 수정 시 notesRepository.update를 호출한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(1)));
-      (notesRepository.update as jest.Mock).mockResolvedValue({ ok: true });
-      render(<NotesPage />);
+      (notesRepository.update as jest.Mock).mockResolvedValue({ id: '1', term: '수정된 용어 1' });
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId('edit-1'));
@@ -415,8 +431,8 @@ describe('NotesPage', () => {
   describe('중요 표시', () => {
     it('별 버튼 클릭 시 toggleStar를 호출한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(1)));
-      (notesRepository.toggleStar as jest.Mock).mockResolvedValue({ ok: true });
-      render(<NotesPage />);
+      (notesRepository.toggleStar as jest.Mock).mockResolvedValue({ id: '1', isStarred: true });
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByTestId('note-item-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByTestId('star-1'));
@@ -428,7 +444,7 @@ describe('NotesPage', () => {
   describe('페이지네이션', () => {
     it('다음 페이지 버튼 클릭 시 페이지가 증가한다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(10), 20));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByText('1 / 2')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: '다음' }));
@@ -440,7 +456,7 @@ describe('NotesPage', () => {
 
     it('이전 페이지 버튼이 첫 페이지에서 비활성화된다', async () => {
       (notesRepository.list as jest.Mock).mockResolvedValue(mockListResponse(makeNotes(10), 20));
-      render(<NotesPage />);
+      renderWithQueryClient(<NotesPage />);
       await waitFor(() => expect(screen.getByText('1 / 2')).toBeInTheDocument());
 
       const prevBtn = screen.getByRole('button', { name: '이전' });
