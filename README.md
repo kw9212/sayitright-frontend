@@ -153,25 +153,47 @@ export async function POST(request: Request) {
 ### TanStack Query로 해결한 방법
 
 ```tsx
-// 아카이브 목록 조회
-const { data, isLoading, error } = useQuery({
+// 아카이브 목록 조회 (무한 스크롤)
+const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
   queryKey: ['archives', filters],
-  queryFn: () => archivesRepository.fetchAll(filters),
+  queryFn: ({ pageParam = 1 }) => archivesRepository.list({ page: pageParam, limit: 20, ...filters }),
+  getNextPageParam: (lastPage, allPages) => {
+    const loaded = allPages.reduce((sum, p) => sum + p.data.items.length, 0);
+    return loaded < lastPage.data.total ? allPages.length + 1 : undefined;
+  },
+  initialPageParam: 1,
   staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
 });
 
 // 아카이브 삭제 (자동 캐시 무효화)
 const deleteMutation = useMutation({
-  mutationFn: archivesRepository.delete,
+  mutationFn: (ids: string[]) => Promise.all(ids.map((id) => archivesRepository.remove(id))),
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['archives'] });
   },
 });
+
+// 용어 노트 즐겨찾기 (낙관적 업데이트)
+const toggleStarMutation = useMutation({
+  mutationFn: (id: string) => notesRepository.toggleStar(id),
+  onMutate: async (id) => {
+    await queryClient.cancelQueries({ queryKey: ['notes'] });
+    const previous = queryClient.getQueryData(['notes', ...]);
+    queryClient.setQueryData(['notes', ...], (old) => ({
+      ...old,
+      notes: old.notes.map((n) => n.id === id ? { ...n, isStarred: !n.isStarred } : n),
+    }));
+    return { previous };
+  },
+  onError: (_, __, context) => queryClient.setQueryData(['notes', ...], context?.previous),
+  onSettled: () => queryClient.invalidateQueries({ queryKey: ['notes'] }),
+});
 ```
 
 - **캐싱**: 아카이브 목록을 조회한 뒤 다른 페이지로 갔다가 돌아와도 5분간은 재요청 없이 즉시 표시
-- **자동 리페칭**: 백그라운드에서 데이터 변경 감지 시 자동으로 최신 데이터 갱신
-- **낙관적 업데이트**: 삭제 버튼 클릭 시 서버 응답 전에 UI에서 먼저 제거하여 빠른 반응
+- **무한 스크롤**: `useInfiniteQuery` + `IntersectionObserver`로 스크롤 시 자동으로 다음 페이지 로드
+- **자동 캐시 무효화**: 삭제/생성/수정 시 `invalidateQueries`로 관련 캐시 자동 갱신
+- **낙관적 업데이트**: 용어 노트 즐겨찾기 토글 시 서버 응답 전에 UI 먼저 반영, 에러 시 자동 롤백
 
 이전에는 상태 관리 코드가 200줄이었는데, TanStack Query 도입 후 50줄로 줄었고, 캐시 무효화 버그도 사라졌습니다.
 
