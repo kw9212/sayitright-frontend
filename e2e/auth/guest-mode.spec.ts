@@ -12,13 +12,11 @@ test.describe('게스트 모드', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test('게스트로 시작하기', async ({ page }) => {
-    // 1. 인트로 페이지로 이동
-    await page.goto('/intro');
+    // 1. 로그인 페이지로 이동 (게스트 버튼이 LoginForm에 있음)
+    await page.goto('/auth');
 
-    // 2. "게스트로 시작" 버튼 찾기
-    const guestButton = page
-      .locator('button:has-text("게스트"), button:has-text("둘러보기")')
-      .first();
+    // 2. "게스트 모드로 사용해보기" 버튼 찾기
+    const guestButton = page.locator('button:has-text("게스트 모드로 사용해보기")').first();
     await expect(guestButton).toBeVisible({ timeout: 5000 });
 
     // 3. 게스트 모드로 시작
@@ -26,21 +24,15 @@ test.describe('게스트 모드', () => {
 
     // 4. 메인 페이지로 이동 확인
     await expect(page).toHaveURL('/main', { timeout: 10000 });
-
-    // 5. 게스트 모드 표시 확인 (예: "게스트 모드" 배지)
-    // await expect(page.locator('text=/게스트|Guest/i')).toBeVisible();
   });
 
   test('게스트 모드에서 용어 노트 접근', async ({ page }) => {
     // 게스트로 시작
-    await page.goto('/intro');
-    const guestButton = page
-      .locator('button:has-text("게스트"), button:has-text("둘러보기")')
-      .first();
+    await page.goto('/auth');
+    const guestButton = page.locator('button:has-text("게스트 모드로 사용해보기")').first();
     if (await guestButton.isVisible()) {
       await guestButton.click();
     } else {
-      // 이미 메인 페이지에 있을 수 있음
       await page.goto('/main');
     }
 

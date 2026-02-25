@@ -1,12 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
+import dotenv from 'dotenv';
+import path from 'path';
 
-/**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import dotenv from 'dotenv';
-// import path from 'path';
-// dotenv.config({ path: path.resolve(__dirname, '.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env.test') });
+
+const authFile = 'playwright/.auth/user.json';
+const hasRealCredentials =
+  !!process.env.TEST_USER_EMAIL && process.env.TEST_USER_EMAIL !== 'test-basic@example.com';
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -46,16 +46,19 @@ export default defineConfig({
       testMatch: /.*\.setup\.ts/,
     },
 
-    // 실제 E2E 테스트 (인증 상태 재사용)
-    {
-      name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        // 저장된 인증 상태 사용
-        storageState: 'playwright/.auth/user.json',
-      },
-      dependencies: ['setup'], // setup 완료 후 실행
-    },
+    // 실제 E2E 테스트 (인증 상태 재사용) - 실제 계정 정보가 있을 때만 실행
+    ...(hasRealCredentials
+      ? [
+          {
+            name: 'chromium',
+            use: {
+              ...devices['Desktop Chrome'],
+              storageState: authFile,
+            },
+            dependencies: ['setup'],
+          },
+        ]
+      : []),
 
     // 게스트 모드 테스트 (인증 없이)
     {

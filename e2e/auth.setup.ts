@@ -10,7 +10,15 @@ import { TEST_USERS } from './fixtures/test-users';
 
 const authFile = 'playwright/.auth/user.json';
 
+const hasRealCredentials =
+  !!process.env.TEST_USER_EMAIL && process.env.TEST_USER_EMAIL !== 'test-basic@example.com';
+
 setup('authenticate as basic user', async ({ page }) => {
+  setup.skip(
+    !hasRealCredentials,
+    '실제 테스트 계정 환경변수(TEST_USER_EMAIL, TEST_USER_PASSWORD)가 설정되지 않아 건너뜁니다.',
+  );
+
   console.log('🔐 Setting up authentication...');
 
   // 1. 로그인 페이지로 이동
