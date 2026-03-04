@@ -293,40 +293,67 @@ const {
 
 <br/>
 
-### **1. OpenAI 프롬프트 빌더 패턴 (EmailPromptBuilder)**
+### 1. OpenAI 프롬프트 빌더 패턴 (EmailPromptBuilder)
 
-- **구현 과정**: 사용자 입력 + 여러 필터(relationship, purpose, tone, length)를 조합해 OpenAI API에 전달
-- **어려움**: 프롬프트 생성 로직이 복잡해지면서 Service 코드가 길어지고, 프롬프트 수정 시 부작용 위험
-- **해결**: EmailPromptBuilder 클래스로 system/user 프롬프트 생성과 응답 파싱(---RATIONALE--- 구분자 파싱) 로직을 캡슐화. 정규식으로 다국어 구분자 대응
-- **결과**: 프롬프트 수정이 한 곳에서 관리되고, 테스트 가능한 순수 함수로 분리. AI 응답 파싱 실패율 0%
+**구현 과정:** 사용자 입력 + 여러 필터(relationship, purpose, tone, length)를 조합해 OpenAI API에 전달
 
-### **2. IP 기반 Rate Limiting (게스트 전용 Guard)**
+**어려움:** 프롬프트 생성 로직이 복잡해지면서 Service 코드가 길어지고, 프롬프트 수정 시 부작용 위험
 
-- **구현 과정**: 게스트 사용자가 이메일 생성 API를 무한 호출하면 OpenAI API 비용 폭탄 우려
-- **어려움**: 게스트는 userId가 없어서 일반적인 Rate Limiting 불가. Redis 도입은 초기 단계에서 오버엔지니어링
-- **해결**: NestJS Guard 패턴으로 IpRateLimitGuard 구현. 인메모리 Map으로 IP당 24시간 3회 제한. X-Forwarded-For 헤더로 프록시 환경 대응
-- **결과**: 게스트 남용 방지 + 추가 인프라 없이 빠른 응답 속도. 메모리 사용량 최소화
+**해결:** `EmailPromptBuilder` 클래스로 system/user 프롬프트 생성과 응답 파싱 로직을 캡슐화. 응답 파싱은 `RATIONALE` / `FEEDBACK` / `피드백` 키워드와 `---` · `===` 구분자를 모두 허용하는 정규식으로 AI 응답 형식 변형에 유연하게 대응
 
-### **3. Prisma 복합키 + Upsert (일일 사용량 추적)**
+**결과:** 프롬프트 수정이 `EmailPromptBuilder` 한 곳에서 관리되고, 테스트 가능한 순수 함수로 분리. 구분자 변형에 강건한 파싱으로 안정적인 응답 처리
 
-- **구현 과정**: 사용자별로 일일 이메일 생성 횟수(basic/advanced 구분) 및 토큰 사용량 추적. 매일 0시 자동 리셋
-- **어려움**: 동시 요청 시 카운팅 누락 또는 중복 위험. 날짜별 레코드를 수동으로 생성하면 race condition 발생
-- **해결**: UsageTracking 테이블에 userId_date 복합키(Composite Key) 설정 + Prisma upsert로 조회/생성/업데이트를 원자적으로 처리. 날짜 문자열(YYYY-MM-DD)로 자동 분리
-- **결과**: 동시성 이슈 없이 정확한 카운팅. 날짜가 바뀌면 자동으로 새 레코드 생성되어 리셋 로직 불필요
+---
 
-### **4. 티어 계산 로직 분리 (tier-calculator.util.ts)**
+### 2. IP 기반 Rate Limiting (게스트 전용 Guard)
 
-- **구현 과정**: 사용자 티어는 구독 상태(subscriptions)와 크레딧 잔액(creditBalance)에 따라 동적 결정
-- **어려움**: 여러 테이블을 조인하고 복잡한 비즈니스 로직을 Service에 넣으면 테스트와 재사용이 어려움
-- **해결**: 순수 함수 calculateUserTier(), checkAdvancedFeatureAccess()로 분리. Prisma include로 필요한 데이터만 한 번에 조회 후 계산 함수에 전달
-- **결과**: 티어 로직이 Service, Controller, Guard 어디서든 재사용 가능. 단위 테스트로 엣지 케이스 검증 쉬움
+**구현 과정:** 게스트 사용자가 이메일 생성 API를 무한 호출하면 OpenAI API 비용 폭탄 우려
 
-### **5. NestJS Guard + @Public() 데코레이터 (인증/인가 분리)**
+**어려움:** 게스트는 userId가 없어서 일반적인 Rate Limiting 불가. Redis 도입은 초기 단계에서 오버엔지니어링
 
-- **구현 과정**: 일부 API는 로그인 필수, 일부는 게스트 허용, 일부는 IP Rate Limit 적용
-- **어려움**: 각 엔드포인트마다 인증 로직을 if문으로 체크하면 코드 중복 + 누락 위험
-- **해결**: JwtAuthGuard (전역 적용) + @Public() 커스텀 데코레이터로 게스트 허용 엔드포인트 표시 + IpRateLimitGuard를 특정 라우트에만 적용
-- **결과**: 라우터에 데코레이터만 추가하면 인증 정책 자동 적용. 보안 정책이 코드에서 명시적으로 보임
+**해결:** NestJS Guard 패턴으로 `IpRateLimitGuard` 구현. 인메모리 Map으로 IP당 24시간 제한 적용. 요청 한도는 `getDailyRequestLimit('guest')`로 `tier-calculator.util.ts`와 단일 소스로 관리하여 정책 변경 시 한 곳만 수정. X-Forwarded-For 헤더로 프록시 환경 대응
+
+**결과:** 게스트 남용 방지 + 추가 인프라 없이 빠른 응답 속도. 한도 정책이 tier-calculator와 일관되게 유지
+
+---
+
+### 3. Prisma 복합키 + Upsert (일일 사용량 추적)
+
+**구현 과정:** 사용자별로 일일 이메일 생성 횟수(basic/advanced 구분) 및 토큰 사용량 추적. 매일 0시 자동 리셋
+
+**어려움:** 동시 요청 시 카운팅 누락 또는 중복 위험. 날짜별 레코드를 수동으로 생성하면 race condition 발생
+
+**해결:** `UsageTracking` 테이블에 `userId_date` 복합키(Composite Key) 설정. 카운팅 증가 경로(`incrementUsage`)에 Prisma upsert를 적용해 조회/생성/업데이트를 원자적으로 처리. 날짜 문자열(YYYY-MM-DD)로 날짜별 자동 분리
+
+**결과:** 카운팅 증가 경로에서 race condition 없이 정확한 집계. 날짜가 바뀌면 자동으로 새 레코드 생성되어 리셋 로직 불필요
+
+---
+
+### 4. 티어 계산 로직 분리 (tier-calculator.util.ts)
+
+**구현 과정:** 사용자 티어는 구독 상태(subscriptions)와 크레딧 잔액(creditBalance)에 따라 동적 결정
+
+**어려움:** 여러 테이블을 조인하고 복잡한 비즈니스 로직을 Service에 넣으면 테스트와 재사용이 어려움
+
+**해결:** 순수 함수 `calculateUserTier()`, `checkAdvancedFeatureAccess()`, `getDailyRequestLimit()` 등으로 분리. Prisma `include`로 필요한 데이터만 한 번에 조회 후 계산 함수에 전달
+
+**결과:** 티어 로직이 Service(`ai.service`, `users.service`)와 Guard(`IpRateLimitGuard`)에서 동일한 함수로 재사용 가능. 단위 테스트로 엣지 케이스 검증 용이
+
+---
+
+### 5. Guard 조합 패턴으로 인증/인가 분리
+
+**구현 과정:** 일부 API는 로그인 필수, 일부는 게스트 허용, 일부는 IP Rate Limit 추가 적용
+
+**어려움:** 각 엔드포인트마다 인증 로직을 if문으로 체크하면 코드 중복 + 누락 위험
+
+**해결:** 3가지 Guard를 라우트별로 조합
+
+- `JwtAccessGuard`: 로그인 필수 엔드포인트 (토큰 없으면 401)
+- `JwtOptionalGuard`: 게스트·로그인 모두 허용 (토큰 있으면 `req.user` 설정, 없으면 통과)
+- `IpRateLimitGuard`: `JwtOptionalGuard` 뒤에 체이닝하여 게스트에만 Rate Limit 적용
+
+**결과:** 라우터에 `@UseGuards()` 조합만 명시하면 인증 정책 자동 적용. 보안 정책이 코드에서 명시적으로 보이고, 각 Guard는 단위 테스트로 독립 검증 가능
 
 <br/>
 
