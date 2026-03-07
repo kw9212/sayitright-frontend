@@ -114,25 +114,25 @@ SayItRight은 이러한 고민에서 출발한 서비스입니다.
 
 ```mermaid
 flowchart TD
-    Start([앱 접속]) --> Bootstrap["bootstrap()\n토큰 상태 확인"]
+    Start([앱 접속]) --> Bootstrap[bootstrap 토큰 상태 확인]
 
     Bootstrap -->|액세스 토큰 유효| Main
     Bootstrap -->|만료 → 리프레시 성공| Main
     Bootstrap -->|리프레시 실패| Intro
 
-    Intro["/intro\n서비스 소개"] -->|페이지 클릭| Auth
-    Auth["/auth\n로그인 · 회원가입"]
+    Intro[/intro 서비스 소개] -->|페이지 클릭| Auth
+    Auth[/auth 로그인 · 회원가입]
 
     Auth -->|로그인| Main
     Auth -->|회원가입 완료| Main
-    Auth -->|게스트 모드로 사용해보기| Main
+    Auth -->|게스트 모드| Main
 
-    Main["/main\n대시보드"]
+    Main[/main 대시보드]
 
-    Main --> EC["/main/email-compose\n이메일 작성"]
-    Main --> AR["/main/archives\n아카이브"]
-    Main --> TP["/main/templates\n템플릿"]
-    Main --> NT["/main/notes\n용어 노트"]
+    Main --> EC[/main/email-compose 이메일 작성]
+    Main --> AR[/main/archives 아카이브]
+    Main --> TP[/main/templates 템플릿]
+    Main --> NT[/main/notes 용어 노트]
 
     EC -->|이메일 생성 완료| Save{저장}
     Save -->|아카이브 저장| AR
