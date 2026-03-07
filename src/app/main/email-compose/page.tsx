@@ -772,9 +772,7 @@ export default function EmailComposePage() {
               <button
                 onClick={async () => {
                   setShowAdvancedFilterModal(false);
-                  if (checkCreditForAdvanced()) {
-                    await executeGeneration();
-                  }
+                  await executeGeneration();
                 }}
                 className="flex-1 py-3 rounded-lg bg-blue-600 
                   hover:bg-blue-700 transition-colors font-semibold"
