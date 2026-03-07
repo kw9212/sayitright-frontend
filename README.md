@@ -120,19 +120,19 @@ flowchart TD
     Bootstrap -->|만료 → 리프레시 성공| Main
     Bootstrap -->|리프레시 실패| Intro
 
-    Intro[/intro 서비스 소개] -->|페이지 클릭| Auth
-    Auth[/auth 로그인 · 회원가입]
+    Intro["/intro 서비스 소개"] -->|페이지 클릭| Auth
+    Auth["/auth 로그인 · 회원가입"]
 
     Auth -->|로그인| Main
     Auth -->|회원가입 완료| Main
     Auth -->|게스트 모드| Main
 
-    Main[/main 대시보드]
+    Main["/main 대시보드"]
 
-    Main --> EC[/main/email-compose 이메일 작성]
-    Main --> AR[/main/archives 아카이브]
-    Main --> TP[/main/templates 템플릿]
-    Main --> NT[/main/notes 용어 노트]
+    Main --> EC["/main/email-compose 이메일 작성"]
+    Main --> AR["/main/archives 아카이브"]
+    Main --> TP["/main/templates 템플릿"]
+    Main --> NT["/main/notes 용어 노트"]
 
     EC -->|이메일 생성 완료| Save{저장}
     Save -->|아카이브 저장| AR
