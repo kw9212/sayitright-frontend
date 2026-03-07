@@ -180,31 +180,6 @@ export default function EmailComposePage() {
     return true;
   };
 
-  const checkCreditForAdvanced = (): boolean => {
-    const usesAdvancedFilters = filters.tone || filters.length;
-
-    if (!usesAdvancedFilters) {
-      return true;
-    }
-
-    if (isGuest) {
-      setToastMessage('💡 체험 모드: 고급 기능을 무료로 사용 중입니다!');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-      return true;
-    }
-
-    const creditBalance = auth.user?.creditBalance ?? 0;
-    if (creditBalance < 1) {
-      setToastMessage('⚠️ 크레딧이 부족합니다. 충전이 필요합니다.');
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-      return false;
-    }
-
-    return true;
-  };
-
   const handleGenerate = async () => {
     if (!userInput.trim()) {
       setToastMessage('⚠️ 이메일 내용을 입력해주세요.');
@@ -225,10 +200,6 @@ export default function EmailComposePage() {
     }
 
     if (!checkAdvancedFilters()) {
-      return;
-    }
-
-    if (!checkCreditForAdvanced()) {
       return;
     }
 
@@ -302,15 +273,6 @@ export default function EmailComposePage() {
             // 아카이브 저장 실패는 조용히 처리 (이메일 생성은 성공했으므로)
           }
         }
-      }
-
-      if (response.data.metadata.creditCharged > 0) {
-        const remaining = response.data.metadata.remainingCredits ?? 0;
-        setToastMessage(
-          `✅ 이메일이 생성되었습니다. (크레딧 ${response.data.metadata.creditCharged}개 사용, 잔액: ${remaining}개)`,
-        );
-        setShowToast(true);
-        setTimeout(() => setShowToast(false), 3000);
       }
     } catch (error) {
       console.error('이메일 생성 실패:', error);
