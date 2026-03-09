@@ -5,6 +5,7 @@ import { AuthProvider } from '@/lib/auth/auth-context';
 import Providers from './providers';
 import { Toaster } from '@/components/ui/sonner';
 import { DevTools } from '@/components/dev/DevTools';
+import { GoogleAnalytics } from '@next/third-parties/google';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Toaster richColors position="bottom-right" />
         <DevTools />
       </body>
+      {process.env.NEXT_PUBLIC_GA_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />}
     </html>
   );
 }

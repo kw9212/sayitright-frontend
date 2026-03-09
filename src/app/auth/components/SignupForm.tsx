@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { sendGAEvent } from '@next/third-parties/google';
 
 const emailSchema = z.object({
   email: z.string().email('이메일 형식이 올바르지 않아요'),
@@ -178,6 +179,7 @@ export default function SignupForm({ onSuccess }: SignupFormProps) {
       }
 
       toast.success('회원가입이 완료되었습니다!');
+      sendGAEvent('event', 'sign_up', { method: 'email' });
       onSuccess?.();
     } catch (error) {
       toast.error('네트워크 오류가 발생했습니다.');

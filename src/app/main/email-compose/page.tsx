@@ -18,6 +18,7 @@ import {
   canCreateArchive,
   incrementArchiveCount,
 } from '@/lib/storage/guest-limits';
+import { sendGAEvent } from '@next/third-parties/google';
 import { toast } from 'sonner';
 import SaveTemplateModal from './SaveTemplateModal';
 
@@ -246,6 +247,11 @@ export default function EmailComposePage() {
 
       setGeneratedEmail(response.data.email);
 
+      sendGAEvent('event', 'generate_email', {
+        mode: isAdvancedMode ? 'advanced' : 'basic',
+        user_type: isGuest ? 'guest' : 'user',
+      });
+
       if (response.data.rationale) {
         setGeneratedRationale(response.data.rationale);
       } else {
@@ -341,12 +347,14 @@ export default function EmailComposePage() {
         await guestTemplatesRepository.create(templateData);
         incrementTemplateCount();
         toast.success('✅ 템플릿이 저장되었습니다!');
+        sendGAEvent('event', 'save_template', { user_type: 'guest' });
       }
       // 로그인 사용자: 백엔드 API에 저장
       else {
         const response = await templatesRepository.create(templateData);
         if (response.ok) {
           toast.success('✅ 템플릿이 저장되었습니다!');
+          sendGAEvent('event', 'save_template', { user_type: 'user' });
         }
       }
 

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useRouter } from 'next/navigation';
+import { sendGAEvent } from '@next/third-parties/google';
 
 const schema = z.object({
   email: z.string().email(),
@@ -27,6 +28,7 @@ export default function LoginForm() {
   const onSubmit = async (values: FormValues) => {
     try {
       await auth.loginLocal(values);
+      sendGAEvent('event', 'login', { method: 'email' });
     } catch (e) {
       form.setError('root', {
         message: e instanceof Error ? e.message : '로그인 실패',
@@ -35,6 +37,7 @@ export default function LoginForm() {
   };
 
   const handleGuestMode = () => {
+    sendGAEvent('event', 'guest_mode_start', {});
     auth.loginAsGuest();
     router.push('/main');
   };
