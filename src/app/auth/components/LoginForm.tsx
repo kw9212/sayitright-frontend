@@ -84,9 +84,9 @@ export default function LoginForm() {
         <Button
           type="button"
           variant="outline"
-          className="w-full bg-linear-to-r from-blue-600/10 to-purple-600/10 
-            border-blue-500/30 hover:from-blue-600/20 hover:to-purple-600/20 
-            text-blue-300 hover:text-blue-200"
+          className="w-full bg-zinc-800 hover:bg-zinc-700 
+            border-zinc-500 hover:border-zinc-400
+            text-zinc-100 hover:text-white"
           onClick={handleGuestMode}
         >
           <span className="mr-2">🎭</span>
