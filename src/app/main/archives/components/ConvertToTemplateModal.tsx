@@ -15,7 +15,7 @@ import { archivesRepository } from '@/lib/repositories/archives.repository';
 import { guestArchivesRepository } from '@/lib/repositories/guest-archives.repository';
 import { templatesRepository } from '@/lib/repositories/templates.repository';
 import { guestTemplatesRepository } from '@/lib/repositories/guest-templates.repository';
-import { canCreateTemplate, incrementTemplateCount } from '@/lib/storage/guest-limits';
+import { GUEST_LIMITS, incrementTemplateCount } from '@/lib/storage/guest-limits';
 import { GuestLimitModal } from '@/components/layout/GuestLimitModal';
 import { toast } from 'sonner';
 
@@ -77,10 +77,13 @@ export default function ConvertToTemplateModal({ archiveId, onClose, onSuccess }
   const handleConvert = async () => {
     if (!archive) return;
 
-    // 게스트 모드: 템플릿 저장 한도 체크
-    if (isGuest && !canCreateTemplate()) {
-      setShowGuestLimitModal(true);
-      return;
+    // 게스트 모드: 템플릿 저장 한도 체크 (IndexedDB 실제 데이터 기준)
+    if (isGuest) {
+      const actualCount = await guestTemplatesRepository.count();
+      if (actualCount >= GUEST_LIMITS.TEMPLATES) {
+        setShowGuestLimitModal(true);
+        return;
+      }
     }
 
     setConverting(true);
