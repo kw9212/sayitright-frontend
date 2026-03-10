@@ -11,9 +11,9 @@ import { templatesRepository } from '@/lib/repositories/templates.repository';
 import { guestTemplatesRepository } from '@/lib/repositories/guest-templates.repository';
 import { guestArchivesRepository } from '@/lib/repositories/guest-archives.repository';
 import {
+  GUEST_LIMITS,
   canGenerateEmail,
   incrementEmailCount,
-  canCreateTemplate,
   incrementTemplateCount,
   canCreateArchive,
   incrementArchiveCount,
@@ -307,15 +307,16 @@ export default function EmailComposePage() {
     }
   };
 
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
     if (!generatedEmail) {
       toast.error('저장할 이메일이 없습니다. 먼저 이메일을 생성해주세요.');
       return;
     }
 
-    // 게스트 모드 한도 체크
+    // 게스트 모드 한도 체크: localStorage 카운터 대신 IndexedDB 실제 데이터 기준으로 확인
     if (isGuest) {
-      if (!canCreateTemplate()) {
+      const actualCount = await guestTemplatesRepository.count();
+      if (actualCount >= GUEST_LIMITS.TEMPLATES) {
         setGuestLimitType('template');
         setShowGuestLimitModal(true);
         return;
