@@ -11,17 +11,20 @@ export default function IntroPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showRefined, setShowRefined] = useState(false);
 
-  const beforeEmail = `안녕하세요
-    지난번 말한거 있잖아요 그거 반영해서 기획서 만들어봤어요
-    한번 봐주시면 좋을것같습니다 수정할거있으면 말씀해주세요`;
+  const beforeEmail = `받는 사람: 팀장님 (직속 상사)
+목적: 기획서 검토 요청
+
+지난 회의 의견 반영
+기획서 초안 완성
+검토 후 피드백 부탁`;
 
   const refinedEmail = `안녕하세요, 팀장님.
 
-    지난번 회의에서 말씀해 주신 내용을 반영하여 기획서 초안을 작성했습니다.
+지난번 회의에서 말씀해 주신 내용을 반영하여 기획서 초안을 작성했습니다.
 
-    첨부한 문서를 검토해 주시고, 수정이 필요한 부분이 있다면 말씀해 주시면 감사하겠습니다.
+첨부한 문서를 검토해 주시고, 수정이 필요한 부분이 있다면 편하게 말씀해 주시면 감사하겠습니다.
 
-    감사합니다.`;
+감사합니다.`;
 
   const auth = useAuth();
 
@@ -77,7 +80,7 @@ export default function IntroPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 backdrop-blur">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-xs font-medium text-zinc-400">정제 전</div>
+                  <div className="text-xs font-medium text-zinc-400">키워드 입력</div>
                   <div className="text-xs text-red-400">❌</div>
                 </div>
                 <div
@@ -93,7 +96,7 @@ export default function IntroPage() {
                   p-4 backdrop-blur shadow-[0_0_20px_rgba(16,185,129,0.1)]"
               >
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-xs font-medium text-emerald-400">정제 후</div>
+                  <div className="text-xs font-medium text-emerald-400">완성된 이메일</div>
                   <div className="text-xs text-emerald-400">
                     {isGenerating ? '⏳ 생성중...' : showRefined ? '✓ 완료' : ''}
                   </div>
