@@ -381,6 +381,16 @@ export default function HelpPage() {
           <p className="text-zinc-500 text-xs mt-1">
             서비스 이용 중 문제가 발생했다면 페이지를 새로고침하거나 다시 시도해주세요.
           </p>
+          <p className="text-zinc-500 text-xs mt-3">
+            추가됐으면 하는 기능이나 발견하신 버그가 있다면 언제든{' '}
+            <a
+              href="mailto:kwsong.dev@gmail.com"
+              className="text-blue-400 hover:text-blue-300 transition-colors underline underline-offset-2"
+            >
+              kwsong.dev@gmail.com
+            </a>
+            으로 보내주세요.
+          </p>
         </div>
       </div>
     </main>
