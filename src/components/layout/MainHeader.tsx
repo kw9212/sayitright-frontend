@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { ProfileEditModal } from './ProfileEditModal';
 import { UpgradeToPremiumModal } from './UpgradeToPremiumModal';
 import { DowngradeToFreeModal } from './DowngradeToFreeModal';
+import { ChangePasswordModal } from './ChangePasswordModal';
 import { toast } from 'sonner';
 
 type MainHeaderProps = {
@@ -26,6 +27,7 @@ export function MainHeader({
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [downgradeModalOpen, setDowngradeModalOpen] = useState(false);
+  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
 
   const isPremium = auth.user?.tier === 'premium';
 
@@ -42,6 +44,11 @@ export function MainHeader({
   const handleProfileEdit = () => {
     setDropdownOpen(false);
     setProfileModalOpen(true);
+  };
+
+  const handleChangePassword = () => {
+    setDropdownOpen(false);
+    setChangePasswordModalOpen(true);
   };
 
   const handleUpgradeToPremium = () => {
@@ -178,6 +185,16 @@ export function MainHeader({
                           👤 프로필 변경
                         </button>
 
+                        {auth.user?.authProvider !== 'google' && (
+                          <button
+                            onClick={handleChangePassword}
+                            className="block w-full px-4 py-2 text-left text-sm 
+                              hover:bg-zinc-700 transition-colors"
+                          >
+                            🔑 비밀번호 변경
+                          </button>
+                        )}
+
                         {isPremium ? (
                           <button
                             onClick={handleDowngradeToFree}
@@ -252,6 +269,11 @@ export function MainHeader({
         isOpen={downgradeModalOpen}
         onClose={() => setDowngradeModalOpen(false)}
         onConfirm={handleConfirmDowngrade}
+      />
+
+      <ChangePasswordModal
+        isOpen={changePasswordModalOpen}
+        onClose={() => setChangePasswordModalOpen(false)}
       />
     </header>
   );
