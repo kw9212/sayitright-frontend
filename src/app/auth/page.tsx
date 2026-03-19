@@ -6,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import LoginForm from './components/LoginForm';
 import SignupForm from './components/SignupForm';
+import ForgotPasswordForm from './components/ForgotPasswordForm';
 import { useAuth } from '@/lib/auth/auth-context';
 
 function AuthPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') as 'login' | 'signup') || 'login';
-  const [tab, setTab] = useState<'login' | 'signup'>(initialTab);
+  const [tab, setTab] = useState<'login' | 'signup' | 'forgot'>(initialTab);
   const auth = useAuth();
 
   useEffect(() => {
@@ -28,29 +29,40 @@ function AuthPageContent() {
               <span className="text-zinc-100">SayItRight</span>
             </CardTitle>
 
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={tab === 'login' ? 'default' : 'outline'}
-                className={tab !== 'login' ? 'text-zinc-600 hover:text-rose-500' : ''}
-                onClick={() => setTab('login')}
-              >
-                로그인
-              </Button>
+            {tab !== 'forgot' && (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant={tab === 'login' ? 'default' : 'outline'}
+                  className={tab !== 'login' ? 'text-zinc-600 hover:text-rose-500' : ''}
+                  onClick={() => setTab('login')}
+                >
+                  로그인
+                </Button>
 
-              <Button
-                type="button"
-                variant={tab === 'signup' ? 'default' : 'outline'}
-                className={tab !== 'signup' ? 'text-zinc-600 hover:text-rose-500' : ''}
-                onClick={() => setTab('signup')}
-              >
-                회원가입
-              </Button>
-            </div>
+                <Button
+                  type="button"
+                  variant={tab === 'signup' ? 'default' : 'outline'}
+                  className={tab !== 'signup' ? 'text-zinc-600 hover:text-rose-500' : ''}
+                  onClick={() => setTab('signup')}
+                >
+                  회원가입
+                </Button>
+              </div>
+            )}
+
+            {tab === 'forgot' && <p className="mt-3 text-sm text-zinc-400">비밀번호 찾기</p>}
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {tab === 'login' ? <LoginForm /> : <SignupForm onSuccess={() => setTab('login')} />}
+            {tab === 'login' && <LoginForm onForgotPassword={() => setTab('forgot')} />}
+            {tab === 'signup' && <SignupForm onSuccess={() => setTab('login')} />}
+            {tab === 'forgot' && (
+              <ForgotPasswordForm
+                onSuccess={() => setTab('login')}
+                onBack={() => setTab('login')}
+              />
+            )}
           </CardContent>
         </Card>
       </div>

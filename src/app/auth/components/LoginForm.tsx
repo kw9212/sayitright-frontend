@@ -16,7 +16,11 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export default function LoginForm() {
+interface LoginFormProps {
+  onForgotPassword?: () => void;
+}
+
+export default function LoginForm({ onForgotPassword }: LoginFormProps) {
   const auth = useAuth();
   const router = useRouter();
 
@@ -71,6 +75,18 @@ export default function LoginForm() {
         <Button className="w-full" type="submit" disabled={form.formState.isSubmitting}>
           로그인
         </Button>
+
+        {onForgotPassword && (
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              비밀번호를 잊으셨나요?
+            </button>
+          </div>
+        )}
 
         <div className="relative py-2">
           <div className="absolute inset-0 flex items-center">
