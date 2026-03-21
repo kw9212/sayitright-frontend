@@ -8,6 +8,8 @@ export type GenerateEmailRequest = {
   tone?: string;
   length?: 'short' | 'medium' | 'long';
   includeRationale?: boolean;
+  previousEmail?: string;
+  refinementFeedback?: string;
 };
 
 export type GenerateEmailResponse = {
