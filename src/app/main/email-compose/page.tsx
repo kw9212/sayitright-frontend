@@ -57,6 +57,7 @@ export default function EmailComposePage() {
   >([]);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [refinementInput, setRefinementInput] = useState('');
   const [showGuestLimitModal, setShowGuestLimitModal] = useState(false);
   const [guestLimitType, setGuestLimitType] = useState<'template' | 'archive' | 'note' | 'email'>(
     'email',
@@ -235,6 +236,8 @@ export default function EmailComposePage() {
         length: length && length.trim() !== '' ? length : undefined,
       };
 
+      const isRefinement = !!(generatedEmail && refinementInput.trim());
+
       const response = await generateEmail({
         draft: userInput.trim(),
         language: filters.language as 'ko' | 'en',
@@ -243,11 +246,16 @@ export default function EmailComposePage() {
         tone: finalFilters.tone,
         length: finalFilters.length as 'short' | 'medium' | 'long' | undefined,
         includeRationale: isAdvancedMode && (!!finalFilters.tone || !!finalFilters.length),
+        ...(isRefinement && {
+          previousEmail: generatedEmail,
+          refinementFeedback: refinementInput.trim(),
+        }),
       });
 
       setGeneratedEmail(response.data.email);
+      if (isRefinement) setRefinementInput('');
 
-      sendGAEvent('event', 'generate_email', {
+      sendGAEvent('event', isRefinement ? 'refine_email' : 'generate_email', {
         mode: isAdvancedMode ? 'advanced' : 'basic',
         user_type: isGuest ? 'guest' : 'user',
       });
@@ -708,6 +716,37 @@ export default function EmailComposePage() {
                       </div>
                     </div>
                   )}
+
+                  <div className="mt-2 mb-3 rounded-lg bg-zinc-800/60 border border-zinc-700 p-3">
+                    <p className="text-xs text-zinc-400 mb-2">✏️ 이 이메일을 수정하고 싶다면</p>
+                    <textarea
+                      value={refinementInput}
+                      onChange={(e) => setRefinementInput(e.target.value)}
+                      placeholder="예: 더 공손하게, 더 간결하게, 마지막 문장을 부드럽게..."
+                      maxLength={200}
+                      rows={2}
+                      className="w-full px-3 py-2 rounded-lg bg-zinc-900 
+                        border border-zinc-700 focus:border-blue-500 
+                        focus:outline-none transition-colors resize-none 
+                        text-sm text-zinc-100 placeholder:text-zinc-600"
+                    />
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-zinc-600">{refinementInput.length}/200</span>
+                      <button
+                        onClick={async () => {
+                          if (!refinementInput.trim()) return;
+                          await executeGeneration();
+                        }}
+                        disabled={!refinementInput.trim() || isGenerating}
+                        className="px-4 py-1.5 rounded-lg bg-amber-600 
+                          hover:bg-amber-700 disabled:bg-zinc-700 
+                          disabled:cursor-not-allowed text-sm font-semibold 
+                          transition-colors"
+                      >
+                        {isGenerating ? '재작성 중...' : '🔄 재작성'}
+                      </button>
+                    </div>
+                  </div>
 
                   <div className="space-y-3">
                     <button
